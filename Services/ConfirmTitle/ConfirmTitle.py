@@ -12,6 +12,7 @@ import pprint
 from optparse import OptionParser
 
 from Utils import Utilities
+from TorrentSelector import TorrentSelector
 
 
 class ConfirmTitle(threading.Thread):
@@ -36,6 +37,7 @@ class ConfirmTitle(threading.Thread):
           self.onStart      = True
           self.not_searching= False
           self.title_data   = {}
+          self.selector     = TorrentSelector()
           
           # Generating instance of strategy
           for key, value in kwargs.iteritems():
@@ -85,9 +87,33 @@ class ConfirmTitle(threading.Thread):
               if self.not_searching:
                   if len(self.title_data.keys())<1:
                       raise Exception('Search data not defined but process started')
-                  self.logger.debug('   ~~~ Confirming title data')
-                  ## pprint.pprint(self.title_data)
-                  self.logger.debug('   ~~~ Resetting search query...')
+                  self.logger.debug('   +++ Confirming title data')
+                  top_item_df       = self.selector.findTitle(self.title_data)
+                  
+                  result_state      = 'failed'
+                  itemsCall         = { }
+                  top_item          = { }
+                  if top_item_df.shape[0] > 0:
+                      result_state  = 'success'
+                  
+                      print "-_"*60
+                      top_items_dict= top_item_df.to_dict()
+                      print "-_"*60
+                      pprint.pprint(top_items_dict)
+                      top_item      = self.selector.reduce_item(top_items_dict)
+                      print "-_"*60
+                      pprint.pprint(top_item)
+                  
+                  
+                  itemsCall.update({'confirmed_title': top_item })
+                  itemsCall.update({'search_title': self.title_data['search_title'] })
+                  pprint.pprint(itemsCall)
+                  print"#"*100
+                  print"#"*100
+                  print"#"*100
+                  self.service.notify("updated", result_state, items=itemsCall)
+
+                  self.logger.debug('   +++ Resetting search query...')
                   self.not_searching = False
               
               self.tStop.wait(1)
@@ -130,16 +156,21 @@ class ConfirmTitle(threading.Thread):
   def SetSearch(self, status):
     try:
       ## Getting correct action
+      self.logger.debug('   +++ Setting up [search_title]')
       search_title      = status['search_title']
+      self.title_data.update({'search_title':  search_title})
       
       ## Getting type of status message
       if status["device_action"] == "find_magnet":
-          self.logger.debug('   ~~~ Setting up [top_items]')
-          self.title_data.update({'top_items':  status['top_items']})
+          self.logger.debug('   +++ Setting up [top_items]')
+          ## pprint.pprint(status)
+          ## print "="*120
+          self.title_data.update({'top_items': status['top_items']})
       elif status["device_action"] == "imdb_data":
-          self.logger.debug('   ~~~ Setting up [found_items]')
+          self.logger.debug('   +++ Setting up [found_items]')
           self.title_data.update({'found_items':  status['found_items']})
           self.not_searching = True
+          self.logger.debug('   +++ Starting search process')
     except Exception as inst:
       Utilities.ParseException(inst, logger=self.logger)
     
