@@ -148,7 +148,7 @@ class FindMovie(threading.Thread):
       Utilities.ParseException(inst, logger=self.logger)
     finally:
       #return resultItems["top_items"]
-      pprint.pprint(resultItems)
+      ## pprint.pprint(resultItems)
       return resultItems
 
   def run(self):
@@ -181,8 +181,9 @@ class FindMovie(threading.Thread):
           else:
             self.logger.debug('   ~~~ Found [%d] items'%len(top_items["top_items"]))
             result_state     = 'success'
-            #pprint.pprint(top_items)
-            itemsCall.update({ 'top_items' : top_items})
+            ##  pprint.pprint(top_items)
+            ## print "+"*120
+            itemsCall.update({ 'top_items': top_items['top_items'] })
 
           self.logger.debug('   ~~~ Posting results')
           self.service.notify("updated", result_state, items=itemsCall)
