@@ -8,13 +8,11 @@ import logging
 import threading
 import imp
 
-from optparse import OptionParser
+import limetorrents_crawler as lmt
 
+from tables.index import opt_search_types
+from optparse import OptionParser, OptionGroup
 from Utils import Utilities
-
-# Include additional python modules
-
-# Include class variables
 
 class InspectTorrents(threading.Thread):
   def __init__(self, **kwargs):
@@ -157,30 +155,82 @@ def call_task(options):
   except Exception as inst:
     Utilities.ParseException(inst, logger=logger)
 
+def main(options):
+    
+    args = {}
+    args.update({
+        'title':        options.title,
+        'page_limit':   options.page_limit,
+        'search_type':  options.search_type,
+        'with_magnet':  options.with_magnet,
+        'with_db':      options.with_db,
+        'database':     options.database,
+        'collection':   options.collection,
+        })
+        
+    lmt.main(**args)
+    
 if __name__ == '__main__':
-  logger = Utilities.GetLogger(LOG_NAME, useFile=False)
+    usage    = "usage: %prog interface=arg1 filter=arg2"
+    logger   = Utilities.GetLogger(LOG_NAME, 
+                                   useFile=True,
+                                   fileLen=10000000, 
+                                   nFiles=20)
+    myFormat = '%(asctime)s|%(name)30s|%(message)s'
+    logging.basicConfig(format=myFormat, level=logging.DEBUG)
+    logger.debug('Logger created.')
   
-  myFormat = '%(asctime)s|%(name)30s|%(message)s'
-  logging.basicConfig(format=myFormat, level=logging.DEBUG)
-  logger 	= Utilities.GetLogger(LOG_NAME, useFile=False)
-  logger.debug('Logger created.')
-  
-  usage = "usage: %prog option1=string option2=bool"
-  parser = OptionParser(usage=usage)
-  parser.add_option('--opt1',
-		      type="string",
-		      action='store',
-		      default=None,
-		      help='Write here something helpful')
-  parser.add_option("--opt2", 
-		      action="store_true", 
-		      default=False,
-		      help='Write here something helpful')
+    search_types = ['all', 'movies', 'music', 'games', 'applications', 'browse-movies', 'browse-shows']
+    parser   = OptionParser(usage=usage)
+    parser.add_option("--title", 
+              action="append", 
+              help="Input title",
+              default=[])
+    parser.add_option('--page_limit',
+              action="store",
+              type="int",
+              help="Input page number",
+              default=1)
+    parser.add_option('--search_type',
+              type="choice",
+              action='store',
+              default='all',
+              choices=search_types,
+              help='Search torrent types:'+str(search_types))
+    parser.add_option("--with_magnet", 
+              action="store_true", 
+              default=False,
+              help='Get torrent magnet for all search items')
     
-  (options, args) = parser.parse_args()
-  
-  if options.opt1 is None:
-    parser.error("Missing required option: --opt1='string'")
-    sys.exit()
+    db_operations = OptionGroup(parser, "Define database operations",
+              "Used for data analytics")
+    db_operations.add_option("--with_db", 
+              action="store_true", 
+              default=False,
+              help='Get torrent magnet for all search items')
+    db_operations.add_option('--database',
+              type="string",
+              action='store',
+              default=None,
+              help='Input database name')
+    db_operations.add_option('--collection',
+              type="string",
+              action='store',
+              default=None,
+              help='Input collection name')
     
-  call_task(options)
+    parser.add_option_group(db_operations)
+  
+    (options, args) = parser.parse_args()
+    
+    if 'browse-' not in options.search_type:
+        if len(options.title) < 1:
+          parser.error("Missing required option: --title='give a name'")
+    
+    if options.with_db:
+        if options.collection is None:
+          parser.error("Missing required option: --collections='collections_name'")
+        if options.database is None:
+          parser.error("Missing required option: --database='database_name'")
+    
+    main(options)
