@@ -8,11 +8,15 @@ import logging
 import threading
 import imp
 
-import limetorrents_crawler as lmt
+from limetorrents_crawler import LimeTorrentsCrawler
+from FindChanges import FindChanges
 
 from tables.index import opt_search_types
 from optparse import OptionParser, OptionGroup
 from Utils import Utilities
+
+logging.getLogger("chardet.charsetprober").setLevel(logging.WARNING)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
 class InspectTorrents(threading.Thread):
   def __init__(self, **kwargs):
@@ -60,7 +64,7 @@ class InspectTorrents(threading.Thread):
     ''' Reports task thread status'''
     return self.running and not self.tStop.isSet()
 
-  def hasFinished(self):
+  def hasFinished(self):	
     ''' Reports task thread status'''
     return not self.running and self.tStop.isSet()
   
@@ -138,23 +142,7 @@ class InspectTorrents(threading.Thread):
       Utilities.ParseException(inst, logger=self.logger)
 
 ## Standalone main method
-LOG_NAME = 'TaskTool'
-def call_task(options):
-  ''' Command line method for running sniffer service'''
-  try:
-    
-    logger = Utilities.GetLogger(LOG_NAME, useFile=False)
-    logger.debug('Calling task from command line')
-    
-    args = {}
-    args.update({'option1': options.opt1})
-    args.update({'option2': options.opt2})
-    
-    taskAction = InspectTorrents(**args)
-
-  except Exception as inst:
-    Utilities.ParseException(inst, logger=logger)
-
+LOG_NAME = 'InspectTorrents'
 def main(options):
     
     args = {}
@@ -167,8 +155,17 @@ def main(options):
         'database':     options.database,
         'collection':   options.collection,
         })
+    
+    
+    if options.with_search:
+        logger.debug("[LimeTorrents]")        
+        lmt = LimeTorrentsCrawler(**args)
+        lmt.Run()
+        logger.debug("Bye!")
         
-    lmt.main(**args)
+    elif options.with_changes:
+        taskAction = FindChanges(**args)
+        taskAction.GetMovies(['leeches', 'seeds'])
     
 if __name__ == '__main__':
     usage    = "usage: %prog interface=arg1 filter=arg2"
