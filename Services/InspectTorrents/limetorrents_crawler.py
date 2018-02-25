@@ -258,18 +258,18 @@ class LimeTorrentsCrawler(Config):
             
             while not pages_queue.empty():
                 page = pages_queue.get()
-                self.logger.debug("  + Fetching page: %d/%s" % (page+1, self.pages))
+                self.logger.debug("  1.1) Fetching page: %d/%s" % (page+1, self.pages))
                 
                 search = self.get_url(self.search_type, self.title)
                 search = search + '{}/'.format(page+1)
                 search_url = self.proxy + search
-                self.logger.debug("  + Looking into:"+search_url)
+                self.logger.debug("  1.2) Looking into:"+search_url)
                 self.soup, time_, returned_code = self.http_request_timed(search_url)
                 
                 if str(type(self.soup)) == 'bs4.BeautifulSoup':
                     self.logger.debug("Error: Invalid HTML search type [%s]"%str(type(self.soup)))
                     waiting_time = 30 # random.randint(1, 3)
-                    self.logger.debug("  + Waiting for [%d]s:"%waiting_time)
+                    self.logger.debug("       Waiting for [%d]s:"%waiting_time)
                     time.sleep(waiting_time)
                     pages_queue.put(page)
                     continue
@@ -278,20 +278,20 @@ class LimeTorrentsCrawler(Config):
                     self.logger.debug("Error: Returned code [%s] captured page [%s]"% (str(returned_code), search_url))
                     self.missed.put(search_url)
                     waiting_time = 30 # random.randint(1, 3)
-                    self.logger.debug("  + Waiting for [%d]s:"%waiting_time)
+                    self.logger.debug("       Waiting for [%d]s:"%waiting_time)
                     time.sleep(waiting_time)
                     pages_queue.put(page)
                     continue
                     
-                self.logger.debug("  + Captured page %d/%d in %.2f sec" % (page+1, self.pages, time_))
+                self.logger.debug("       Captured page %d/%d in %.2f sec" % (page+1, self.pages, time_))
                 self.total_fetch_time += time_
                     
                 with self.lock:
-                    self.logger.debug("  + Placing page [%d] in queue"%page)
+                    self.logger.debug("  1.3) Placing page [%d] in queue"%page)
                     self.soup_dict.put({page : self.soup})
                     
                 with cond:
-                    self.logger.debug("  + Notifying html parsing with error code [%s]"%str(returned_code))
+                    self.logger.debug("  1.4) Notifying html parsing with error code [%s]"%str(returned_code))
                     if returned_code == 200:
                         cond.notifyAll()
                         page_counter += 1
@@ -317,7 +317,7 @@ class LimeTorrentsCrawler(Config):
             pages_parsed = 0
             with cond:
                 while not self.crawler_finished:
-                    self.logger.debug("  - Waiting for HTML crawler notification...")
+                    self.logger.debug("  2.1) Waiting for HTML crawler notification...")
                     cond.wait()
                     
                     ## Acquiring lock and collecting soup
@@ -335,7 +335,7 @@ class LimeTorrentsCrawler(Config):
 
                     ## Once soup has been collected, starting to parse
                     page                = soupKeys[0]
-                    self.logger.debug("  - Getting page [%d]"%(page))
+                    self.logger.debug("  2.2) Getting page [%d]"%(page+1))
                     self.soup           = soupDict[page]
                     
                     print "===> self.soup.type: ", type(self.soup)
@@ -349,7 +349,7 @@ class LimeTorrentsCrawler(Config):
                         
                     ## Looking for table components
                     content             = self.soup.find('table', class_='table2')
-                    self.logger.debug("  - Parsing page next page")
+                    self.logger.debug("  2.3) Parsing page next page")
                     
                     if content is None:
                         self.logger.debug("Error: Invalid parsed content")
@@ -414,7 +414,7 @@ class LimeTorrentsCrawler(Config):
                         
                         ## Inserting in database
                         if self.with_db:
-                            self.logger.debug("  -   Appending in database [%s]"%element['hash'])
+                            self.logger.debug("  2.4) Appending in database [%s]"%element['hash'])
                             result = self.Update_TimeSeries_Day(element, 
                                                         'hash',         ## This is the item key, it should be unique!
                                                         ['seeds', 'leeches'],  ## These items are defined in a time series
@@ -429,7 +429,7 @@ class LimeTorrentsCrawler(Config):
                     else:
                         self.logger.debug("  - Total parsed pages: [%d]"%pages_parsed)
                         
-                    self.logger.debug("  - Finished parsing HTML")
+                    self.logger.debug("  2.5) Finished parsing HTML")
 
             self.logger.debug('Found [%d] items'%pages_parsed)
 
@@ -496,22 +496,24 @@ class LimeTorrentsCrawler(Config):
                         isTodayBetter   = todays_db < todays_website
                         
                         ## TODO: We should know the page of both items
+                        #print "=== [",datetime_now.month, "/", datetime_now.day,"], todays_db >= todays_website:", todays_db, '>=', todays_website
                         isTodayWorse    = todays_db >= todays_website
                         if isTodayWorse:
-                            self.logger.debug("  -       Existing value for [%s] similar or better", key)
+                            self.logger.debug("           Existing value for [%s] similar or better", key)
                         
                         # Updating condition and substitute values
                         elif isTodayBetter:
                             ## result = True
                             result      = self.db_handler.Update(condition, subs_item_id)
-                            self.logger.debug("  -       Updated [%s] series item with hash [%s] in collection [%s]"% 
-                                      (key, item[item_index], self.db_handler.coll_name))
+                            self.logger.debug("           Updated [%s] series item with hash [%s] in collection [%s]"% 
+                                      (key, web_element[item_index], self.db_handler.coll_name))
                         
                     ## if day is missing, add it!
                     else:
+                        ## result = True
                         result          = self.db_handler.Update(condition, subs_item_id)
-                        self.logger.debug("  -       Added [%s] series item with hash [%s] in collection [%s]"% 
-                                  (key, item[item_index], self.db_handler.coll_name))
+                        self.logger.debug("           Added [%s] series item for [%s/%s] with hash [%s] in collection [%s]"% 
+                                  (key, str(datetime_now.month), str(datetime_now.day), web_element[item_index], self.db_handler.coll_name))
                         
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
@@ -524,8 +526,8 @@ class LimeTorrentsCrawler(Config):
         '''
         result                  = True
         try: 
-            if isinstance(post,type(None)):
-                self.logger.debug("Invalid input post for printing")
+            if isinstance(db_post,type(None)):
+                self.logger.debug("Invalid input DB post for printing")
 
             elementKeys         = element.keys()
             postKeys            = post.keys()
@@ -589,13 +591,16 @@ class LimeTorrentsCrawler(Config):
                                   (keyItem, self.db_handler.coll_name))
                 result = post_id is not None
             else:
+                if postsSize>1:
+                    self.logger.debug('   Warning found [%d] items for [%s]'
+                                      %(postsSize, keyItem))
                 for post in posts:  ## it should be only 1 post!
                     ## 1) Check if there are missing or extra keys
-                    updated_missing = self.UpdateMissing(copy.deepcopy(post), item)
+                    updated_missing = self.AddMissingKeys(copy.deepcopy(post), item)
                     if updated_missing:
-                        self.logger.debug('  1)     Added item  [%s] into DB ', keyItem)
+                        self.logger.debug('    2.4.1) Added item  [%s] into DB ', keyItem)
                     else:
-                        self.logger.debug('  1)     DB Updated failed or no added key in item [%s]', keyItem)
+                        self.logger.debug('    2.4.2) DB Updated failed or no added key in item [%s]', keyItem)
                     
                     ## 2) Check if items for HASH already exists
                     ts_updated      = self.UpdateBestSeriesValue(post, 
@@ -603,9 +608,9 @@ class LimeTorrentsCrawler(Config):
                                                                  item_index, 
                                                                  items_id)
                     if ts_updated:
-                        self.logger.debug('  2)     Time series updated for [%s]', keyItem)
+                        self.logger.debug('    2.4.3) Time series updated for [%s]', keyItem)
                     else:
-                        self.logger.debug('  2)     DB Updated failed or time series not updated for [%s]', keyItem)
+                        self.logger.debug('    2.4.4) DB Updated failed or time series not updated for [%s]', keyItem)
                     result              = updated_missing and ts_updated
                     
         except Exception as inst:
