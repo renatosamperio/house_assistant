@@ -36,7 +36,8 @@ class FindChanges():
             self.collection       = None
             self.action_words     = None
             self.not_searching    = False
-            self.torrent_terms    = self.LoadTerms('list_termx.txt')
+            self.database         = None
+            self.torrent_terms    = None
 
             # Generating instance of strategy 
             for key, value in kwargs.iteritems():
@@ -44,6 +45,9 @@ class FindChanges():
                     self.database = value
                 elif "collection" == key:
                     self.collection = value
+                elif "with_changes" == key:
+                    self.with_changes = self.LoadTerms('list_termx.txt')
+                    
 
             ## Setting item started for reporting to device action
             self.running    = True

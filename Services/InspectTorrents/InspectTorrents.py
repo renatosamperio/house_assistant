@@ -164,6 +164,7 @@ def main(options):
         logger.debug("Bye!")
         
     elif options.with_changes:
+        args.update({'with_changes': options.with_changes})
         taskAction = FindChanges(**args)
         taskAction.GetMovies(['leeches', 'seeds'])
     
