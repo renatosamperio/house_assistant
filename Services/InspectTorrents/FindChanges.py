@@ -11,6 +11,7 @@ import csv, codecs, cStringIO
 import pprint
 
 import pandas as pd
+import numpy as np
 
 from optparse import OptionParser
 from collections import Counter
@@ -77,21 +78,32 @@ class FindChanges():
         try:
             for item in items_id:
                 ##self.logger.debug("      Looking for changes in [%s] of [%s]", item, record['hash'])
-                item_id_dict            = record[item]['value']
-                item_df                 = pd.DataFrame(item_id_dict)
-                for col_index in item_df:
-                    item_se             = pd.Series(item_df[col_index])
-                    item_df[col_index]  = pd.to_numeric(item_se)
+                months                  = record[item]['value']
                 
+                months_df               = pd.DataFrame(months)
+                for col_index in months_df:
+                    months_se            = pd.Series(months_df[col_index])
+                    months_df[col_index] = pd.to_numeric(months_se)
+                    
+                    ## Find if the indexes are numerically sequential
+                    months_np_array     = months_se.index.astype(np.int16)
+                    months_arr_seq      = np.sort(months_np_array)
+                    sequencesArray      = Utilities.IsNpArrayConsecutive(months_arr_seq)
+                    isIncremental       = len(sequencesArray)==1
+                    
+                    ## Do not continue if it is not sequential
+                    if not isIncremental:
+                        ## self.logger.debug("      Index array of [%s] is not sequential for [%s]", item, record['hash'])
+                        continue
+                    
                     ## Drop first element as it is does not has 1st derivative
-                    first_derivative    = item_df[col_index].diff().iloc[1:]
+                    first_derivative    = months_df[col_index].diff().iloc[1:]
                     
                     ## Check items that derivative is not zero
                     has_zeros           = first_derivative[first_derivative >0]
                     if has_zeros.count() > 0:
                         self.logger.debug("      Something changed in [%s] of item [%s]", 
                                           item, record['hash'])
-                        
                         ## Add items if they are not included
                         changed_items = record
                         return
