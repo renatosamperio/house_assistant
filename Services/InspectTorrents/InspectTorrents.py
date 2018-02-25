@@ -177,30 +177,38 @@ if __name__ == '__main__':
     logging.basicConfig(format=myFormat, level=logging.DEBUG)
     logger.debug('Logger created.')
   
-    search_types = ['all', 'movies', 'music', 'games', 'applications', 'browse-movies', 'browse-shows']
+    search_types = ['all', 'movies', 'music', 'games', 'applications', 
+                    'browse-movies', 'browse-shows']
     parser   = OptionParser(usage=usage)
-    parser.add_option("--title", 
+    
+    torrent_search = OptionGroup(parser, "Torrent crawling configuration",
+              "Used to find most populat torrents")
+    torrent_search.add_option("--with_search", 
+               action="store_true", 
+               default=False,
+               help='Find items with latest changes')
+    torrent_search.add_option("--title", 
               action="append", 
               help="Input title",
               default=[])
-    parser.add_option('--page_limit',
+    torrent_search.add_option('--page_limit',
               action="store",
               type="int",
               help="Input page number",
               default=1)
-    parser.add_option('--search_type',
+    torrent_search.add_option('--search_type',
               type="choice",
               action='store',
               default='all',
               choices=search_types,
               help='Search torrent types:'+str(search_types))
-    parser.add_option("--with_magnet", 
+    torrent_search.add_option("--with_magnet", 
               action="store_true", 
               default=False,
               help='Get torrent magnet for all search items')
     
-    db_operations = OptionGroup(parser, "Define database operations",
-              "Used for data analytics")
+    db_operations = OptionGroup(parser, "Torrent DB configuration",
+              "Used for storing collected data")
     db_operations.add_option("--with_db", 
               action="store_true", 
               default=False,
@@ -216,18 +224,34 @@ if __name__ == '__main__':
               default=None,
               help='Input collection name')
     
+    find_updates = OptionGroup(parser, "Torrent popularity search",
+               "Used to identify changes in leeches and seeds")
+    find_updates.add_option("--with_changes", 
+               action="store_true", 
+               default=False,
+               help='Find items with latest changes')
+     
+    parser.add_option_group(find_updates)
+    parser.add_option_group(torrent_search)
     parser.add_option_group(db_operations)
   
     (options, args) = parser.parse_args()
     
-    if 'browse-' not in options.search_type:
-        if len(options.title) < 1:
-          parser.error("Missing required option: --title='give a name'")
+    if options.with_search:
+        if 'browse-' not in options.search_type and len(options.title) < 1:
+          parser.error("Missing required option: --search_type='%s'"%str(search_types))
     
-    if options.with_db:
+        if options.with_db:
+            if options.collection is None:
+              parser.error("Missing required option: --collections='collections_name'")
+            if options.database is None:
+              parser.error("Missing required option: --database='database_name'")
+    
+    elif options.with_changes:
         if options.collection is None:
           parser.error("Missing required option: --collections='collections_name'")
         if options.database is None:
           parser.error("Missing required option: --database='database_name'")
-    
+    else:
+        parser.error("Missing required option: --with_search|--with_changes")
     main(options)
