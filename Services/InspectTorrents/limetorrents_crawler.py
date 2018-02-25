@@ -11,6 +11,7 @@ import time
 import random
 import bs4
 import copy
+import re
 
 from bs4 import BeautifulSoup
 from collections import Counter
@@ -436,9 +437,95 @@ class LimeTorrentsCrawler(Config):
         except Exception as inst:
           Utilities.ParseException(inst, logger=self.logger)
 
-    def run(self):
-        """
-        """
+    def complete_db(self, cond):
+        '''
+        '''
+        try:
+            with cond:
+                items           = ['leeches', 'seeds']
+                datetime_now    = datetime.datetime.utcnow()
+                
+                month           = str(datetime_now.month)
+                day             = str(datetime_now.day)
+                page_counter    = 0
+                total_fetch_time= 0.0
+                    
+                self.logger.debug('    3.1) Searching non updated items')
+                leeches_key     = 'leeches.value.'+month+"."+day
+                seeds_key       = 'seeds.value.'+month+"."+day
+                condition       = { '$or': [{ leeches_key : {'$exists': False}}, { seeds_key : {'$exists': False}}]}
+                posts           = self.db_handler.Find(condition)
+                postsSize       = posts.count()
+                self.logger.debug('         Found [%d] items'%postsSize)
+                
+                self.logger.debug('    3.2) Creating queue of posts')
+                posts_queue     = Queue.Queue()
+                for post in posts:
+                    posts_queue.put(post)
+                
+                while not posts_queue.empty():
+                    post = posts_queue.get()
+                    ##pprint.pprint(post)
+                    search_url  = post['link']
+                    self.logger.debug("      3.2.1) Looking into ["+search_url+']')
+                    self.soup, time_, returned_code = self.http_request_timed(search_url)
+            
+                    if str(type(self.soup)) == 'bs4.BeautifulSoup':
+                        self.logger.debug("Error: Invalid HTML search type [%s]"%str(type(self.soup)))
+                        waiting_time = 30 # random.randint(1, 3)
+                        self.logger.debug("       Waiting for [%d]s:"%waiting_time)
+                        time.sleep(waiting_time)
+                        posts_queue.put(post)
+                        continue
+                    
+                    if returned_code != 200:
+                        self.logger.debug("Error: Returned code [%s] captured page [%s]"% (str(returned_code), search_url))
+                        self.missed.put(search_url)
+                        waiting_time = 30 # random.randint(1, 3)
+                        self.logger.debug("       Waiting for [%d]s:"%waiting_time)
+                        time.sleep(waiting_time)
+                        posts_queue.put(post)
+                        continue
+                        
+                    page_counter += 1
+                    self.logger.debug("       Captured page %d/%d in %.2f sec" % (page_counter+1, postsSize, time_))
+                    total_fetch_time += time_
+                    
+                    ## Looking for table components
+                    self.logger.debug("      3.2.2) Searching for leechers, seeders and hash ID")
+                    search_table    = self.soup.find('table')
+                    lines           = search_table.findAll('td')
+                    hash            = lines[2].string.strip()
+                    
+                    seeders_num     = None
+                    seeders_data    = self.soup.body.findAll(text=re.compile('^Seeders'))
+                    if len(seeders_data)>1:
+                        seeders_num = seeders_data[0].split(':')[1].strip()
+                        
+                    leechers_num    = None
+                    leechers_data   = self.soup.body.findAll(text=re.compile('^Leechers'))
+                    if len(leechers_data)>1:
+                        leechers_num= leechers_data[0].split(':')[1].strip()
+                    
+                    if post['hash'] == hash:
+                    	self.logger.debug("      3.2.3) Updating item [%s] with [%s] leeches " % (hash, leechers_num))
+                        condition   = { 'hash' : hash }
+                        leeches_item= {leeches_key: leechers_num }
+                        result      = self.db_handler.Update(condition, leeches_item)
+
+                        self.logger.debug("      3.2.4) Updating item [%s] with [%s] seeds " % (hash, seeders_num))
+                        condition   = { 'hash' : hash }
+                        seeds_item  = {seeds_key: seeders_num }
+                        result      = self.db_handler.Update(condition, seeds_item)
+
+        except Exception as inst:
+          Utilities.ParseException(inst, logger=self.logger)
+
+    def Run(self):
+        '''
+        Looks for all browse movies and parses HTML in two threads. 
+        Then, updates any non feature torrent in DB 
+        '''
         try:
             self.logger.debug("Obtaining proxies...")
             proxy_ok = self.check_proxy()
@@ -459,6 +546,13 @@ class LimeTorrentsCrawler(Config):
                 
                 html_crawler.join()
                 html_parser.join()
+                
+                crawler_db  = threading.Thread(
+                    name='crawler_db',  
+                    target=self.complete_db, 
+                    args=(condition,))
+                crawler_db.start()
+                crawler_db.join()
                 
                 ## pprint.pprint(lmt.supermasterlist)
                 
