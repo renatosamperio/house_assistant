@@ -559,7 +559,7 @@ class LimeTorrentsCrawler(Config):
         except Exception as inst:
           Utilities.ParseException(inst, logger=self.logger)
 
-    def UpdateBestSeriesValue(self, post_copy, item, item_index, items_id):
+    def UpdateBestSeriesValue(self, db_post, web_element, item_index, items_id):
         '''
         Comparator for time series update to check if for today already exists a value. 
         Could possible be if torrent hash is repeated in the website. 
@@ -568,25 +568,25 @@ class LimeTorrentsCrawler(Config):
         '''
         result      = True
         try:
-            postKeys = post_copy.keys()
+            postKeys = db_post.keys()
             for key in items_id:
                 if key in postKeys:
                     datetime_now        = datetime.datetime.utcnow()
                     month               = str(datetime_now.month)
                     day                 = str(datetime_now.day)
-                    day_exist           = str(day) in post_copy[key]['value'][month].keys()
+                    day_exist           = str(day) in db_post[key]['value'][month].keys()
                      
                     ## If day already exists check if it is better the one given 
                     ## right now by the webiste
                     
-                    condition           = { item_index : item[item_index] }
+                    condition           = { item_index : web_element[item_index] }
                     set_key             = key+".value."+str(datetime_now.month)+"."+str(datetime_now.day)
-                    subs_item_id        = {set_key: item[key] }
+                    subs_item_id        = {set_key: web_element[key] }
                     if day_exist:
                         ## If is value found in the website is bigger, use this one
                         ## otherwise let the one existing in the database
-                        todays_db       = post_copy[key]['value'][month][day]
-                        todays_website  = item[key]
+                        todays_db       = db_post[key]['value'][month][day]
+                        todays_website  = web_element[key]
                         isTodayBetter   = todays_db < todays_website
                         
                         ## TODO: We should know the page of both items
@@ -614,7 +614,7 @@ class LimeTorrentsCrawler(Config):
         finally:
             return result
 
-    def UpdateMissing(self, post, element):
+    def AddMissingKeys(self, db_post, web_element):
         '''
         Adds missing keys in existing DB records.
         '''
@@ -623,8 +623,8 @@ class LimeTorrentsCrawler(Config):
             if isinstance(db_post,type(None)):
                 self.logger.debug("Invalid input DB post for printing")
 
-            elementKeys         = element.keys()
-            postKeys            = post.keys()
+            elementKeys         = web_element.keys()
+            postKeys            = db_post.keys()
             postKeysCounter     = Counter(postKeys)
             elementKeysCounter  = Counter(elementKeys)
             extra_in_db         = (postKeysCounter - elementKeysCounter).keys()
@@ -638,8 +638,8 @@ class LimeTorrentsCrawler(Config):
                 for key in missed_in_db:
                     self.logger.debug('  -     Updated item [%s] from DB', key)
                     result     = self.Update(
-                                    condition={"_id": post["_id"]}, 
-                                    substitute={key: element[key]}, 
+                                    condition={"_id": db_post["_id"]}, 
+                                    substitute={key: web_element[key]}, 
                                     upsertValue=False)
                     self.logger.debug("  -       Added key [%s] in item [%s] of collection [%s]"% 
                                   (key, item[item_index], self.db_handler.coll_name))
@@ -662,11 +662,12 @@ class LimeTorrentsCrawler(Config):
             condition               = {item_index: keyItem}
             posts                   = self.db_handler.Find(condition)
             datetime_now            = datetime.datetime.utcnow()
+            postsSize               = posts.count()
             
             ## We can receive more than one time series item
             ## to update per call in the same item
             #TODO: Do a more efficient update/insert for bulk items
-            if posts.count() < 1:
+            if postsSize < 1:
                 ## Prepare time series model for time series
                 def get_day_timeseries_model(value, datetime_now):
                     return { 
