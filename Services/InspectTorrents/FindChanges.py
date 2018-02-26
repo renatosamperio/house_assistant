@@ -306,9 +306,14 @@ class FindChanges():
                     torrent_info.update({'year':year_found})
                     ###print "\t~~~~> year_found:\t", year_found
                     #after = torrent_title.replace(title_has_year.group(1),'')
-                    splitted = torrent_title.split(year_found)[0]
+                    splitted = str(torrent_title.split(year_found)[0])
                 else:
-                    splitted = torrent_title
+                    splitted = str(torrent_title)
+                    
+                ## Remove non-required specific characters
+                if not splitted.isalpha():
+                    splitted = splitted.translate(None, "([_#@&*|~`%^<>").strip()
+
                 torrent_info['torrent_title'] = splitted
                 ###print "\t~~~~> splitted:\t\t", splitted
                 ###counter = 0
