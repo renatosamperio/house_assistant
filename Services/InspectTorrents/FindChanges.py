@@ -325,6 +325,7 @@ class FindChanges():
                 
                 ## Pre-selecting only IMDB titles that 
                 ##   look very similar to torrent title
+                ignored_items   = 0
                 for imdb_item in imdb_data:
                     score = comparator.score(splitted, imdb_item['title'])
                     year_matches    = year_found == imdb_item['year']
@@ -335,12 +336,16 @@ class FindChanges():
                         imdb_item.update({'score':score})
                         imdb_item.update({'year_matches':year_matches})
                         updated_imdb.append(imdb_item)
+                    else:
+                        ignored_items += 1
+                        self.logger.debug("      Ignored [%s] vs [%s] = %f"%
+                                          (splitted, imdb_item['title'], score))
                     
                     ###print "\t\t[",counter,"]   \t\t", score,"\t[" ,imdb_item['title'],"]\t", year_matches, "\t", item_type
                     ###counter += 1
-                    ##pprint.pprint(imdb_item)
-                    ##print "= "*20
-                    
+                
+                self.logger.debug("+   Ignored [%s] item(s)"%(str(ignored_items)))
+                
                 ## Sorting IMDB retrieved items by similarity score
                 sorted_imdb = sorted(updated_imdb, key=itemgetter('score'), reverse=True) 
                 ##print "~"*40
