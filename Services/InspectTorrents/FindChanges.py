@@ -374,8 +374,14 @@ class FindChanges():
                     if item_added:
                         imdb_id                 = imdb_item['imdb_id']
                         title_info              = imdb.get_title(imdb_id)
+                        title_genres            = imdb.get_title_genres(imdb_id)
                         
-                        ###print "+ "*40, 'title_info'
+                        
+                        if title_genres is not None and 'genres' in title_genres:
+                            genres_label         = str(', '.join(title_genres['genres']))
+                            imdb_item.update({'genres': genres_label})
+                            
+                        ##print "+ "*40, 'title_info'
                         ###pprint.pprint(title_info)
                         ###print "+ "*40
                         
@@ -474,17 +480,22 @@ class FindChanges():
 #                   'torrent_title': u'Wolf Warrior 2 2017 by',
 #                   'year': u'2017'}}
 
-
-                
                 label_time_now  = datetime.datetime.now().strftime("Found on the %d of %B, %Y")
                 label_name      = str(imdb_selected['torrent_info']['torrent_title'])
                 label_seeds     = str(int(imdb_selected['torrent_info']['seeds']['mean']))
                 label_leeches   = str(int(imdb_selected['torrent_info']['leeches']['mean']))
                 label_torr_url  = imdb_selected['torrent_info']['torrent_link']
-                
-                attachments             = []
+
+                attachments         = []
                 for imdb_item in imdb_selected['imdb_info']:
-                    fields              = []
+                    fields          = []
+                    label_genres    = imdb_item['genres']
+                    genres          = {
+                                        "title": "Genres",
+                                        "value": label_genres,
+                                        "short": True
+                                    }
+                    fields.append(genres)
                     seeds           = {
                                         "title": "Seeds",
                                         "value": label_seeds,
