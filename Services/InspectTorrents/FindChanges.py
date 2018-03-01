@@ -463,9 +463,12 @@ class FindChanges():
                 
                 ## Searching for IMDB info
                 imdb_selected   = get_imdb_best_title(torrent_info, comparator)
+                if len(imdb_selected)<1:
+                    self.logger.debug("- No IMDB data found for [%s]"%clean_name)
+                    continue
 
-
-# {'imdb_info': [{'image_url': u'https://ia.media-imdb.com/images/M/MV5BMTY0NjU4NjE4Nl5BMl5BanBnXkFtZTgwNjk0ODY5MjI@._V1_.jpg',
+# {'imdb_info': [{'genres': 'Biography, Comedy, Drama, Family, Music',
+#                'image_url': u'https://ia.media-imdb.com/images/M/MV5BMTY0NjU4NjE4Nl5BMl5BanBnXkFtZTgwNjk0ODY5MjI@._V1_.jpg',
 #                 u'imdb_id': u'tt7131870',
 #                 'plot': u"China's deadliest special forces operative settles into a quiet life on the sea. When sadistic mercenaries begin targeting nearby civilians, he must leave his newfound peace behind and return to his duties as a soldier and protector.",
 #                 'raiting': 6.3,
