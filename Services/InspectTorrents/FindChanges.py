@@ -211,25 +211,9 @@ class FindChanges():
             
             ## Defined local function to find changes in time series
             self.logger.debug("      Looking for changes in collection [%s]",self.collection)
-#             all_names = Counter()
             start_time = time.time()
             super_count = 0
             for record in records:
-                ## Collecting names
-#                 processed_name = re.sub('[\(\)\{\}<>][-]', ' ', record['name'].lower())
-#                 splitted_names = processed_name.split()
-                ##splitted_names = [re.sub('[\(\)\{\}<>][-]', ' ', x.lower()) for x in splitted_names]
-#                 print "=== n:" , record['name']
-#                 print "=== p:", processed_name
-#                 print "=== s:", splitted_names
-                ## Counting words in each item name
-#                 all_names = all_names + Counter(splitted_names)
-                
-                ## Finding words in list of torrent terms
-#                 new_name = ' '.join(list(set(splitted_names) - set(self.torrent_terms)))
-#                 print "=== N:", new_name
-#                 print "="*100
-
                 ## Collecting leeches and seeds
                 changed_item, newest_item, not_sequential = self.FindChange(items_id, record)
                 if changed_item is not None:
@@ -294,8 +278,7 @@ class FindChanges():
                 item_selected   = {}
                 year_found      = None
                 torrent_title   = torrent_info['torrent_title']
-                ###print "\t~~~~> before:\t\t", torrent_title
-                
+
                 ## Using torrent title until year,
                 ##   only if torrent title has a year
                 title_has_year  = re.match(r'.*([1-3][0-9]{3})', torrent_title)
@@ -304,8 +287,6 @@ class FindChanges():
                     
                     ## Adding torrent title year
                     torrent_info.update({'year':year_found})
-                    ###print "\t~~~~> year_found:\t", year_found
-                    #after = torrent_title.replace(title_has_year.group(1),'')
                     splitted = str(torrent_title.split(year_found)[0])
                 else:
                     splitted = str(torrent_title)
@@ -313,11 +294,7 @@ class FindChanges():
                 ## Remove non-required specific characters
                 if not splitted.isalpha():
                     splitted = splitted.translate(None, "([_#@&*|~`%^<>").strip()
-
                 torrent_info['torrent_title'] = splitted
-                ###print "\t~~~~> splitted:\t\t", splitted
-                ###counter = 0
-                ##print "= "*20
                 
                 ## Getting IMDB information
                 imdb_data       = imdb.search_for_title(splitted)
@@ -340,18 +317,11 @@ class FindChanges():
                         ignored_items += 1
                         self.logger.debug("      Ignored [%s] vs [%s] = %f"%
                                           (splitted, imdb_item['title'], score))
-                    
-                    ###print "\t\t[",counter,"]   \t\t", score,"\t[" ,imdb_item['title'],"]\t", year_matches, "\t", item_type
-                    ###counter += 1
-                
+
                 self.logger.debug("+   Ignored [%s] item(s)"%(str(ignored_items)))
                 
                 ## Sorting IMDB retrieved items by similarity score
                 sorted_imdb = sorted(updated_imdb, key=itemgetter('score'), reverse=True) 
-                ##print "~"*40
-                ##pprint.pprint(sorted_imdb)
-                ##print "~"*40
-                
                 
                 ## Checking if torrent year matches, otherwise 
                 ##   provide only feature type IMDB items
@@ -360,13 +330,9 @@ class FindChanges():
                     item_added                  = False
                     new_item                    = {}
                     if imdb_item['year_matches']:
-                        #print imdb_item
-                        #print "= "*20
                         better_item_not_found   = True
                         item_added              = True
                     elif not better_item_not_found and 'feature' == imdb_item['type']:
-                        #print imdb_item
-                        #print "@ "*20
                         item_added              = True
                         
                     ## Retrieving additional IMDB information
@@ -380,11 +346,7 @@ class FindChanges():
                         if title_genres is not None and 'genres' in title_genres:
                             genres_label         = str(', '.join(title_genres['genres']))
                             imdb_item.update({'genres': genres_label})
-                            
-                        ##print "+ "*40, 'title_info'
-                        ###pprint.pprint(title_info)
-                        ###print "+ "*40
-                        
+
                         imdb_image_url          = ''
                         if 'image' in title_info['base'].keys():
                             imdb_image_url          = title_info['base']['image']['url']
@@ -418,10 +380,6 @@ class FindChanges():
                         imdb_item.update({'plot':       imdb_plot})
                         imdb_item.update({'image_url':  imdb_image_url})
                         imdb_item.update({'title_url':  'http://www.imdb.com/'+imdb_title_url})
-                        
-                        
-                        #new_item.update({'imdb_info':imdb_item})
-                        
                         imdb_selected.append(imdb_item)
                 
                 item_selected.update({'imdb_info':imdb_selected})
