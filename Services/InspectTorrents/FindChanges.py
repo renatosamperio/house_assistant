@@ -149,8 +149,6 @@ class FindChanges():
                     
                     ## Discard items that are not sequential
                     if not isIncremental:
-                        ## self.logger.debug("      Index array of [%s] is not sequential for [%s]", item, record['hash'])
-                        
                         #self.logger.debug("        IGNORE [%s] because is not sequential"%(record['hash']))
                         not_sequential = record
                         continue
@@ -221,14 +219,10 @@ class FindChanges():
                 if newest_item is not None:
                     all_newest_items.append(newest_item)
                 counter += 1
-                
-#                 if super_count > 100:
-#                     break
+
                 super_count += 1
             elapsed_time = time.time() - start_time
             self.logger.debug("  + Collected [%d] records in [%s]"%(counter, str(elapsed_time)))
-#             self.logger.debug("  + Saving most popular words in names");
-#             self.SaveNameWords(all_names)
                 
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
