@@ -573,8 +573,16 @@ class LimeTorrentsCrawler(Config):
                 if key in postKeys:
                     datetime_now        = datetime.datetime.utcnow()
                     month               = str(datetime_now.month)
+                    month_exists        = month in db_post[key]['value'].keys()
+                    
+                    ## Checking if month exists
+                    if not month_exists:
+                        self.logger.debug("           Adding month [%s] to [%s]"%(month, key))
+                        db_post[key]['value'].update({month : {}})
+                        
+                    ## Checking if day exists
                     day                 = str(datetime_now.day)
-                    day_exist           = str(day) in db_post[key]['value'][month].keys()
+                    day_exist           = day in db_post[key]['value'][month].keys()
                      
                     ## If day already exists check if it is better the one given 
                     ## right now by the webiste
