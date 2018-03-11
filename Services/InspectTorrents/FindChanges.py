@@ -9,15 +9,19 @@ import imp
 import re
 import csv, codecs, cStringIO
 import pprint
+import random
 
 import pandas as pd
 import numpy as np
+from scipy import stats #stats.mode
 
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 from collections import Counter
+from transitions import Machine
 
 from Utils import Utilities
 from Utils import MongoAccess
+from ForecastModel import ForecastModel
 
 class FindChanges():
     def __init__(self, **kwargs):
@@ -28,10 +32,6 @@ class FindChanges():
             self.component        = self.__class__.__name__
             self.logger           = Utilities.GetLogger(self.component)
 
-            # Thread action variables
-            self.tid              = None
-            self.running          = False
-            
             ## Adding local variables
             self.database         = None
             self.collection       = None
@@ -39,23 +39,27 @@ class FindChanges():
             self.not_searching    = False
             self.database         = None
             self.torrent_terms    = None
+            self.forecast_item    = None
+            self.db_handler       = None
 
-            # Generating instance of strategy 
+            # Generating instance of strategy  
             for key, value in kwargs.iteritems():
                 if "database" == key:
                     self.database = value
                 elif "collection" == key:
                     self.collection = value
+                elif "forecast_item" == key:
+                    self.forecast_item = value
                 elif "with_changes" == key:
                     self.with_changes = self.LoadTerms('list_termx.txt')
                     
 
-            ## Setting item started for reporting to device action
-            self.running    = True
-            self.logger.debug("  + Generating database [%s] in [%s] collections"% 
-                                (self.database, self.collection))
-            self.db_handler = MongoAccess(debug=False)
-            self.db_handler.connect(self.database, self.collection)
+            if self.forecast_item is None:
+                ## Setting item started for reporting to device action
+                self.logger.debug("  + Generating database [%s] in [%s] collections"% 
+                                    (self.database, self.collection))
+                self.db_handler = MongoAccess(debug=False)
+                self.db_handler.connect(self.database, self.collection)
             
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
@@ -128,7 +132,10 @@ class FindChanges():
         '''
         Finds if there is a change time series by using first derivative
         '''
+        all_changed_items   = []
         try:
+            if self.forecast_item is not None:
+                return
             db_size = self.db_handler.Size()
             self.logger.debug("  + Getting [%d] records from [%s]"%(db_size, self.collection))
             
@@ -138,7 +145,6 @@ class FindChanges():
             
             ## Defined local function to find changes in time series
             self.logger.debug("      Looking for changes in collection [%s]",self.collection)
-            all_changed_items = []
 #             all_names = Counter()
             start_time = time.time()
             super_count = 0
@@ -171,12 +177,13 @@ class FindChanges():
                 super_count += 1
             elapsed_time = time.time() - start_time
             self.logger.debug("  + Collected [%d] records in [%s]"%(counter, str(elapsed_time)))
-            pprint.pprint(all_changed_items)
             self.logger.debug("  + Saving most popular words in names");
 #             self.SaveNameWords(all_names)
                 
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
+        finally:
+            return all_changed_items
 
 LOG_NAME = 'TaskTool'
 
@@ -188,12 +195,22 @@ def call_task(options):
     logger.debug('Calling task from command line')
     
     args = {}
-    args.update({'database':    options.database})
-    args.update({'collection':  options.collection})
+    args.update({'database':        options.database})
+    args.update({'collection':      options.collection})
     
-    taskAction = FindChanges(**args)
-    taskAction.GetMovies(['leeches', 'seeds'])
-
+    if options.forecast_file is None:
+        taskAction = FindChanges(**args)
+        taskAction.GetMovies(['leeches', 'seeds'])
+    else:
+        logger.debug('Openning sample model file [%s]'%options.forecast_file)
+        with open(options.forecast_file, 'r') as file:
+            forecast_item = json.load(file)
+            args.update({'forecast_item': forecast_item})
+        taskAction = ForecastModel(**args)
+        for data_unit in forecast_item:
+            #taskAction.Run(data_unit, ['leeches', 'seeds'])
+            taskAction.Run(data_unit, ['seeds'])
+        
   except Exception as inst:
     Utilities.ParseException(inst, logger=logger)
 
@@ -218,14 +235,25 @@ if __name__ == '__main__':
               default=None,
               help='Provide a valid collection name')
     
+  forecast_parser = OptionGroup(parser, "Torrent forecast modelling",
+              "Used to alarm torrent experiences")
+  forecast_parser.add_option('--forecast_file',
+              type="string",
+              action='store',
+              default=None,
+              help='Input file wiht sample data')
+    
+  parser.add_option_group(forecast_parser)
+  
   (options, args) = parser.parse_args()
   
-  if options.database is None:
-    parser.error("Missing required option: --database='valid_db_name'")
-    sys.exit()
-  if options.collection is None:
-    parser.error("Missing required option: --collection='valid_collection_name'")
-    sys.exit()
-  print options
+  if options.forecast_file is None:
+      if options.database is None:
+        parser.error("Missing required option: --database='valid_db_name'")
+        sys.exit()
+      if options.collection is None:
+        parser.error("Missing required option: --collection='valid_collection_name'")
+        sys.exit()
+  ##print options
   call_task(options)
   
