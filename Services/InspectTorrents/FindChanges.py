@@ -582,7 +582,22 @@ if __name__ == '__main__':
               action='store',
               default=None,
               help='Provide a valid collection name')
-    
+
+  slack_parser = OptionGroup(parser, "Slack options",
+              "Used to publish data in Slack")
+  slack_parser.add_option('--slack_channel',
+              type="string",
+              action='store',
+              default=None,
+              help='Input a valid slack channel')
+  
+  analyse_parser = OptionGroup(parser, "Torrent analyse tools",
+              "Used to analyse data")
+  analyse_parser.add_option("--plot",
+               action="store_true",
+               default=False,
+               help='Plot items')
+
   forecast_parser = OptionGroup(parser, "Torrent forecast modelling",
               "Used to alarm torrent experiences")
   forecast_parser.add_option('--forecast_file',
@@ -600,8 +615,9 @@ if __name__ == '__main__':
               action='store',
               default=None,
               help='List of terms to ignore')
-    
+
   parser.add_option_group(forecast_parser)
+  parser.add_option_group(analyse_parser)
   
   (options, args) = parser.parse_args()
   
