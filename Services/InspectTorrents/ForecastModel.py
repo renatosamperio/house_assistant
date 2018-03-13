@@ -471,18 +471,27 @@ class ForecastModel():
     def Run(self, forecast_item):
         '''
         '''
-        result = {}
-        optimal_model = {}
-        error_optimisation = None
+        result              = {}
+        optimal_model       = {}
+        error_optimisation  = None
+        result_models       = []
         try:
-            for data_unit in forecast_item:
+            for input_data in forecast_item:
                 #['leeches', 'seeds']
-                
+                self.logger.debug("Processing input data for [%s]"%input_data['name'])
                 ## Optimising errors of initial error estimates
                 for initial_error_estim in self.optimisation_steps:
                     ## Executing Kalman filter model
-                    result = self.ExecuteModel(data_unit, ['seeds'], initial_error_estim, error_optimisation)
-                    error_optimisation = result['result']['error_optimisation']
+                    result = self.ExecuteModel(input_data, 
+                                               ['seeds'], 
+                                               initial_error_estim, 
+                                               error_optimisation)
+                    
+                    if result is None:
+                        print "Error: Invalid result set"
+                        break
+                    result_models.append(result)
+                    break
                 break
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
