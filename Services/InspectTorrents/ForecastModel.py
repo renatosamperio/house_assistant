@@ -415,35 +415,54 @@ class ForecastModel():
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
 
-    def ExecuteModel(self, data_unit, items_id, initial_error_estim, error_optimisation):
+    def ExecuteModel(self, input_data, items_id, initial_error_estim, error_optimisation):
         result = None
         try:
             ## Initialising input model
             output = {}
-            output.update({'optimisation_steps': self.optimisation_steps})
-            output.update({'data_unit': data_unit})
-            output.update({'initial_error_estim': initial_error_estim})
-            output.update({'error_optimisation' : error_optimisation})
+            output.update({'input_data': input_data})
             
-            ## Running model
-            for step in range(len(self.transitions)):
-                self.logger.debug( "Executing model in state: [%s] in [%s] with initial error of [%s]"%
-                                   (self.fsm.state, data_unit['hash'], str(initial_error_estim)))
+            ### result_models = []
+            data_model = {
+                    'train_property':       'seeds',
+                    'initial_error_estim':  initial_error_estim,
+                    'optimisation_steps':   self.optimisation_steps,
+                    'error_optimisation':   error_optimisation,
+                    'step_result':          False,
+                    'model':                None
+            }
+            
+            
+            ## Running model wihtout going to the last step: step6_choose_optimal
+            for step in range(len(self.states)-2):
+                
+                if self.fsm.state == 'step1':
+                    self.logger.debug( "  Initialising data model")
+                    output.update({'data_model' : data_model})
+                
+                self.logger.debug( "  Executing state: [%s] in [%s] with initial error [%s]"%
+                                   (self.fsm.state, input_data['hash'], str(initial_error_estim)))
                 input  = {}
-                input.update({'items_id': items_id})
+                input.update({'items_id':   items_id})
+                input.update({'data_model': output['data_model']})
                 input.update(output)
                 output = {}
-                previous_statte = self.fsm.state
+                previous_state = self.fsm.state
+                
+                ## Moving FSM state
                 self.fsm.advance(output, **input)
                 
-                if not output['result']:
+                if not output['data_model']['step_result']:
                     self.logger.debug( "Error: Failure in state: "+self.fsm.state)
                     return
-            
-            ## Storing results workbook
-            data_unit.update({'result':output})
 
-            result = data_unit
+                if self.fsm.state == 'step6':
+                    self.logger.debug( "Interrupting FSM sequence")
+                    self.logger.debug( "  Storing result data model")
+                    result  = output['data_model']
+                    self.fsm.restart()
+                    self.logger.debug( "  Restarting FSM to [%s]"%self.fsm.state)
+
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
         finally:
