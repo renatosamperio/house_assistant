@@ -313,79 +313,68 @@ class PipeModel(object):
         
         Adds column for measurement and its 1st derivative.
         '''
-        dict_months_us          = {}
-        data_unit               = None
-        items_id                = None
-        initial_error_estim     = None
-        optimisation_steps      = None
-        error_optimisation      = None
+        data_model              = None
         result                  = True
         try:
             ## Collecting input data
             for key, value in input.iteritems():
-                if "items_id" == key:
-                    items_id    = value
-                elif "data_unit" == key:
-                    data_unit   = value
-                elif "initial_error_estim" == key:
-                    initial_error_estim = value
-                elif "optimisation_steps" == key:
-                    optimisation_steps = value
-                elif "error_optimisation" == key:
-                    error_optimisation = value
+                if "input_data" == key:
+                    input_data   = value
+                elif "data_model" == key:
+                    data_model = value
 
-            ## Iterating item IDs
-            for item_id in items_id:
-                key_item_dict   = data_unit[item_id]
-        
-                self.logger.debug("  1.1) Formatting [%s] data in single column"%item_id)
-                data_values             = key_item_dict['value']
-                months_as_keys          = data_values.keys()
-                months_days             = []
-                indexes                 = []
-                values                  = []
+            ## Collecting step data
+            train_property  = data_model['train_property']
+            key_item_dict   = input_data[train_property]
+    
+            self.logger.debug("  1.1) Formatting [%s] data in single column"%train_property)
+            data_values             = key_item_dict['value']
+            months_as_keys          = data_values.keys()
+            months_days             = []
+            indexes                 = []
+            values                  = []
+            
+            ## Merging all measurements in one time line
+            for month in months_as_keys:
+                days                = data_values[month].keys()
+                for day in days:
+                    months_day_key  = '%02d'%int(month)+'%02d'%int(day)
+                    day_value       = data_values[month][day]
+                    months_days.append({months_day_key:day_value})
+            months_days = sorted(months_days)
+            
+            ## Convert all items into a single time series
+            ##   Getting indexes and columns
+            for sorted_month_day in months_days:
+                indexes.append(sorted_month_day.keys()[0])
+                values.append(int(sorted_month_day.values()[0]))
                 
-                ## Merging all measurements in one time line
-                for month in months_as_keys:
-                    days                = data_values[month].keys()
-                    for day in days:
-                        months_day_key  = '%02d'%int(month)+'%02d'%int(day)
-                        day_value       = data_values[month][day]
-                        months_days.append({months_day_key:day_value})
-                months_days = sorted(months_days)
-                
-                ## Convert all items into a single time series
-                ##   Getting indexes and columns
-                for sorted_month_day in months_days:
-                    indexes.append(sorted_month_day.keys()[0])
-                    values.append(int(sorted_month_day.values()[0]))
-                    
-                ## Convert query results to a dataframe
-                months_df               = pd.DataFrame(values, 
-                                                       index=indexes, 
-                                                       columns = ['Measurement'])
-                
-                ## Collapse all items in one column
-                self.logger.debug("  1.2) Calculating 1st derivative")
-                derivative          = np.diff(months_df['Measurement'])
-                derivative          = np.insert(derivative.astype(float), 0, float('nan'))
-                key                 = '1stDerivMeas'
-                months_df[key]      = derivative
-                
-                item_name = 'months_'+item_id
-                self.logger.debug("  1.3) Collecting results for [%s]"%item_name)
-                output.update({item_id : months_df})
-                self.logger.debug("-"*65)
-                ##lst_months_us.append({item_name : months_us})
+            ## Convert query results to a dataframe
+            months_df               = pd.DataFrame(values, 
+                                                   index=indexes, 
+                                                   columns = ['Measurement'])
+            
+            ## Collapse all items in one column
+            self.logger.debug("  1.2) Calculating 1st derivative")
+            derivative          = np.diff(months_df['Measurement'])
+            derivative          = np.insert(derivative.astype(float), 0, float('nan'))
+            key                 = '1stDerivMeas'
+            months_df[key]      = derivative
+            
+            ### item_name = 'months_'+item_id
+            item_name = 'months_'+train_property
+            self.logger.debug("  1.3) Collecting results for [%s]"%item_name)
+            
+            ## Passed data model to next state
+            data_model['model'] = months_df
+            self.logger.debug("-"*65)
                 
         except Exception as inst:
             result = False
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            output.update({'result': result})
-            output.update({'initial_error_estim': initial_error_estim})
-            output.update({'optimisation_steps': optimisation_steps})
-            output.update({'error_optimisation' : error_optimisation})
+            data_model['step_result'] = result
+            output.update({'data_model' : data_model})
 
 class ForecastModel():
     def __init__(self, **kwargs):
