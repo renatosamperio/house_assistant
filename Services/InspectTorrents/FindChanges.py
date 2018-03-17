@@ -83,7 +83,40 @@ class FindChanges():
             for item in items_id:
                 ##self.logger.debug("      Looking for changes in [%s] of [%s]", item, record['hash'])
                 months                  = record[item]['value']
+                months_as_keys          = record[item]['value'].keys()
                 
+                ## Find if latest values are zeros
+                ##   Organise months and days from different months
+                ##   in a list of sorted month_days
+                months_days             = []
+                for month in months_as_keys:
+                    days                = record[item]['value'][month].keys()
+                    for day in days:
+                        months_day_key  = '%02d'%int(month)+'%02d'%int(day)
+                        day_value       = record[item]['value'][month][day]
+                        months_days.append({months_day_key:day_value})
+                        
+                ##   Reverser search for find latest days
+                months_days = sorted(months_days, reverse=True)
+                
+                ##   Find if last items are in zero
+                zero_items = 0
+                for measure in months_days:
+                    if int(measure.values()[0]) != 0:
+                        break
+                    zero_items += 1
+                
+                ## Ignoring items with more than 3 days in zeros
+                if zero_items > 3:
+                    self.logger.debug("        IGNORE [%s] with [%d] latest days in zeros"%
+                                  (record["hash"], zero_items))
+                    continue
+                
+                if record["hash"]=='9BDD38672F9ADB66BD88B154D2473EBB84D6A376':
+                    print "months_days"
+                    pprint.pprint(months_days)
+                    print "zero_items:", zero_items
+                ## Look for values without missing values
                 months_df               = pd.DataFrame(months)
                 for col_index in months_df:
                     months_se            = pd.Series(months_df[col_index])
@@ -98,6 +131,8 @@ class FindChanges():
                     ## Do not continue if it is not sequential
                     if not isIncremental:
                         ## self.logger.debug("      Index array of [%s] is not sequential for [%s]", item, record['hash'])
+                        
+                        self.logger.debug("        IGNORE [%s] because is not sequential"%(record['hash']))
                         continue
                     
                     ## Drop first element as it is does not has 1st derivative
@@ -106,7 +141,7 @@ class FindChanges():
                     ## Check items that derivative is not zero
                     has_zeros           = first_derivative[first_derivative >0]
                     if has_zeros.count() > 0:
-                        self.logger.debug("      Something changed in [%s] of item [%s]", 
+                        self.logger.debug("  Something changed in [%s] of item [%s]", 
                                           item, record['hash'])
                         ## Add items if they are not included
                         changed_items = record
@@ -177,7 +212,7 @@ class FindChanges():
                 super_count += 1
             elapsed_time = time.time() - start_time
             self.logger.debug("  + Collected [%d] records in [%s]"%(counter, str(elapsed_time)))
-            self.logger.debug("  + Saving most popular words in names");
+#             self.logger.debug("  + Saving most popular words in names");
 #             self.SaveNameWords(all_names)
                 
         except Exception as inst:
@@ -200,7 +235,8 @@ def call_task(options):
     
     if options.forecast_file is None:
         taskAction = FindChanges(**args)
-        taskAction.GetMovies(['leeches', 'seeds'])
+        changes = taskAction.GetMovies(['seeds'])
+        pprint.pprint(changes)
     else:
         logger.debug('Openning sample model file [%s]'%options.forecast_file)
         with open(options.forecast_file, 'r') as file:
