@@ -242,81 +242,70 @@ class PipeModel(object):
         '''
         result                  = True
         try:
-            initial_error_estim = None
-            items_id            = None
-            optimisation_steps  = None
-            error_optimisation  = None
+            ### initial_error_estim = None
+            data_model          = None
             
             ## Collecting input data
             for key, value in input.iteritems():
-                if "items_id" == key:
-                    items_id    = value
-                elif "initial_error_estim" == key:
-                    initial_error_estim = value
-                elif "optimisation_steps" == key:
-                    optimisation_steps = value
-                elif "error_optimisation" == key:
-                    error_optimisation = value
+                if "data_model" == key:
+                    data_model = value
 
-
+            ## Collecting step data
+            initial_error_estim = data_model['initial_error_estim']
+            
             ## Defining Kalman gain function
             def kalman_gain(error_estimate, error_measurement):
                 return error_estimate/(error_estimate+error_measurement)
             
-            ##source              = output['result_data'][0]['months_seeds']
-            ## Iterating item IDs
-            for item_id in items_id:
-                source          = input[item_id]
-                
-                ## Defining initial variables
-                kalman_gain_values  = []
-                err_estimate_values = []
-                error_estimate_last = None
-                series_size         = sum(1 for x in source.iterrows())
+            source          = data_model['model']
+            
+            ## Defining initial variables
+            kalman_gain_values  = []
+            err_estimate_values = []
+            error_estimate_last = None
+            series_size         = sum(1 for x in source.iterrows())
+              
+            ## Calculating initial error in measurement
+            self.logger.debug("  2.1) Calculating initial error in measurement")
+            measurements        = pd.Series(source['Measurement'].values)
+            stddev              = measurements.std()
+            error_measurement   = 0.00001 if stddev==0 else stddev
+            
+            ## Calculating step values for error of estimate and kalman gain
+            self.logger.debug("  2.2) Calculating values for error of estimate and Kalman gain")
+            for index in range(series_size):
                   
-                ## Calculating initial error in measurement
-                self.logger.debug("  2.1) Calculating initial error in measurement")
-                measurements        = pd.Series(source['Measurement'].values)
-                stddev              = measurements.std()
-                error_measurement   = 0.00001 if stddev==0 else stddev
-                
-                ## Calculating step values for error of estimate and kalman gain
-                self.logger.debug("  2.2) Calculating values for error of estimate and Kalman gain")
-                for index in range(series_size):
-                      
-                    ## Preparing error in estimate
-                    if index == 0:
-                        error_estimate  = initial_error_estim
-                    else:
-                        error_estimate  = error_estimate_last
+                ## Preparing error in estimate
+                if index == 0:
+                    error_estimate  = initial_error_estim
+                else:
+                    error_estimate  = error_estimate_last
 
-                    ## Calculating Kalman gain
-                    kalman_gain_val = kalman_gain(error_estimate, error_measurement)
-                    kalman_gain_values.append(kalman_gain_val)
-    #                print("KG:\t %.6f, %.6f, %.6f" % (error_estimate, error_measurement, kalman_gain_val))
-                      
-                    ## Calculating error in estimate
-                    error_estimate      = (1-kalman_gain_val)*error_estimate
-                    error_estimate_last = error_estimate
-    #                print("EE:\t %.8f, %.8f, %.8f" % (kalman_gain_val, error_estimate_last, error_estimate))
-                    err_estimate_values.append(error_estimate)
-                
-                ## Adding new columns with error in estimate and Kalman gain
-                self.logger.debug("  2.3) Adding error in estimate and Kalman gain as new columns")
-                source['ErrorEstimate'] = err_estimate_values
-                source['KalmanGain']    = kalman_gain_values
-                self.logger.debug("-"*65)
-                
-                output.update({item_id : source})
+                ## Calculating Kalman gain
+                kalman_gain_val = kalman_gain(error_estimate, error_measurement)
+                kalman_gain_values.append(kalman_gain_val)
+#                print("KG:\t %.6f, %.6f, %.6f" % (error_estimate, error_measurement, kalman_gain_val))
+                  
+                ## Calculating error in estimate
+                error_estimate      = (1-kalman_gain_val)*error_estimate
+                error_estimate_last = error_estimate
+#                print("EE:\t %.8f, %.8f, %.8f" % (kalman_gain_val, error_estimate_last, error_estimate))
+                err_estimate_values.append(error_estimate)
+            
+            ## Adding new columns with error in estimate and Kalman gain
+            self.logger.debug("  2.3) Adding error in estimate and Kalman gain as new columns")
+            source['ErrorEstimate'] = err_estimate_values
+            source['KalmanGain']    = kalman_gain_values
+            self.logger.debug("-"*65)
+            
+            data_model['model'] = source
         except Exception as inst:
             result = False
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            output.update({'result': result})
-            output.update({'initial_error_estim': initial_error_estim})
-            output.update({'optimisation_steps': optimisation_steps})
-            output.update({'error_optimisation' : error_optimisation})
-        
+            data_model['step_result'] = result
+            output.update({'data_model' : data_model})
+
     def step1_format_data(self, output, **input):
         '''
         Transforms queried data into a collapsed version with all
