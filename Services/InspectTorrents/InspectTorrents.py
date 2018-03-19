@@ -166,7 +166,9 @@ def main(options):
     elif options.with_changes:
         args.update({'with_changes': options.with_changes})
         taskAction = FindChanges(**args)
-        taskAction.GetMovies(['leeches', 'seeds'])
+        inspect_items = ['leeches', 'seeds']
+        changed_items = taskAction.GetMovies(inspect_items)
+        taskAction.ForecastModel(changed_items, inspect_items)
     
 if __name__ == '__main__':
     usage    = "usage: %prog interface=arg1 filter=arg2"
