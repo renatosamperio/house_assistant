@@ -498,37 +498,39 @@ class ForecastModel():
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
 
-    def Run(self, data_unit, items_id):
-        '''
-        '''
+    def ExecuteModel(self, data_unit, items_id, initial_error_estim, error_optimisation):
+        result = None
         try:
             ## Initialising input model
             output = {}
+            output.update({'optimisation_steps': self.optimisation_steps})
             output.update({'data_unit': data_unit})
+            output.update({'initial_error_estim': initial_error_estim})
+            output.update({'error_optimisation' : error_optimisation})
             
             ## Running model
-            for step in range(len(self.transitions)-1):
-                self.logger.debug( "Executing model in state: "+self.fsm.state)
+            for step in range(len(self.transitions)):
+                self.logger.debug( "Executing model in state: [%s] in [%s] with initial error of [%s]"%
+                                   (self.fsm.state, data_unit['hash'], str(initial_error_estim)))
                 input  = {}
                 input.update({'items_id': items_id})
                 input.update(output)
                 output = {}
+                previous_statte = self.fsm.state
                 self.fsm.advance(output, **input)
-                #pprint.pprint(output)
-                 
+                
                 if not output['result']:
                     self.logger.debug( "Error: Failure in state: "+self.fsm.state)
                     return
-            pprint.pprint(output)
-         
-#                 self.logger.debug("  4) Calculating current estimate of 1) with mean/mode as first initial value")
-#                 self.logger.debug("  5) Calculating error in estimate")
-#                 self.logger.debug("  6) Calculating 1st derivative of 1)")
-#                 self.logger.debug("  7) Calculating 1st derivative of 4)")
-#                 self.logger.debug("  8) Calculating mean, standard deviation and standard score of 6)")
-#                 self.logger.debug("  9) Calculating mean, standard deviation and standard score of 7)")
-#                 self.logger.debug("  10) Calculating squared error of 8) and 9)")
-#                 self.logger.debug("  11) Optimising 10) to obtain minimum error as Initial measurement")
+            
+            ## Storing results workbook
+            data_unit.update({'result':output})
+
+            result = data_unit
+        except Exception as inst:
+            Utilities.ParseException(inst, logger=self.logger)
+        finally:
+            return result
 
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
