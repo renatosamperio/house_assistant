@@ -468,22 +468,26 @@ class ForecastModel():
             self.component          = self.__class__.__name__
             self.logger             = Utilities.GetLogger(self.component)
 
-            #self.fsm                = None
             self.fsm                = PipeModel()
             self.machine            = None
             self.forecast_item      = None
             self.error_estimate     = None
             self.error_measurement  = None
+
             for key, value in kwargs.iteritems():
                 if "forecast_item" == key:
                     self.forecast_item = value
-            
+ 
+            self.optimisation_steps=[0.001, 1, 5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 81920, 163840, 327680]
             self.states=['step1', 'step2', 'step3', 'step4', 'step5']
             self.transitions = [
                 { 'trigger': 'advance', 'source': 'step1', 'dest': 'step2', 'before': 'step1_format_data' },
                 { 'trigger': 'advance', 'source': 'step2', 'dest': 'step3', 'before': 'step2_kalman_gain' },
                 { 'trigger': 'advance', 'source': 'step3', 'dest': 'step4', 'before': 'step3_current_estimate' },
-                { 'trigger': 'advance', 'source': 'step4', 'dest': 'step5', 'before': 'execute' }
+                { 'trigger': 'advance', 'source': 'step4', 'dest': 'step5', 'before': 'step4_normalise' },
+                { 'trigger': 'advance', 'source': 'step5', 'dest': 'step1', 'before': 'step5_optimise' },
+               ## { 'trigger': 'choose', 'source': 'step1', 'dest': 'step6', 'before': 'step6_choose_optimal' },
+                ##{ 'trigger': 'advance', 'source': 'step6', 'dest': 'step1'},
             ]
             
             # Initialize
@@ -589,6 +593,6 @@ if __name__ == '__main__':
       if options.collection is None:
         parser.error("Missing required option: --collection='valid_collection_name'")
         sys.exit()
-  ##print options
+
   call_task(options)
   
