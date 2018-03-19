@@ -532,9 +532,27 @@ class ForecastModel():
         finally:
             return result
 
+    def Run(self, forecast_item):
+        '''
+        '''
+        result = {}
+        optimal_model = {}
+        error_optimisation = None
+        try:
+            for data_unit in forecast_item:
+                #['leeches', 'seeds']
+                
+                ## Optimising errors of initial error estimates
+                for initial_error_estim in self.optimisation_steps:
+                    ## Executing Kalman filter model
+                    result = self.ExecuteModel(data_unit, ['seeds'], initial_error_estim, error_optimisation)
+                    error_optimisation = result['result']['error_optimisation']
+                break
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
-           
+        finally:
+            return result
+
 def call_task(options):
   ''' Command line method for running sniffer service'''
   try:
@@ -551,10 +569,8 @@ def call_task(options):
         forecast_item = json.load(file)
         args.update({'forecast_item': forecast_item})
     taskAction = ForecastModel(**args)
-    for data_unit in forecast_item:
-        #taskAction.Run(data_unit, ['leeches', 'seeds'])
-        taskAction.Run(data_unit, ['seeds'])
-        
+    taskAction.Run(forecast_item)
+
   except Exception as inst:
     Utilities.ParseException(inst, logger=logger)
 
