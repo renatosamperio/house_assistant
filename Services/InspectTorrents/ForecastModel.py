@@ -303,12 +303,22 @@ class PipeModel(object):
         '''
         result                  = True
         try:
+            initial_error_estim = None
+            items_id            = None
+            optimisation_steps  = None
+            error_optimisation  = None
+            
             ## Collecting input data
             for key, value in input.iteritems():
                 if "items_id" == key:
                     items_id    = value
-                elif "data_source" == key:
-                    data_source = value
+                elif "initial_error_estim" == key:
+                    initial_error_estim = value
+                elif "optimisation_steps" == key:
+                    optimisation_steps = value
+                elif "error_optimisation" == key:
+                    error_optimisation = value
+
 
             ## Defining Kalman gain function
             def kalman_gain(error_estimate, error_measurement):
@@ -337,10 +347,10 @@ class PipeModel(object):
                       
                     ## Preparing error in estimate
                     if index == 0:
-                        error_estimate  = 0.001
+                        error_estimate  = initial_error_estim
                     else:
                         error_estimate  = error_estimate_last
-                      
+
                     ## Calculating Kalman gain
                     kalman_gain_val = kalman_gain(error_estimate, error_measurement)
                     kalman_gain_values.append(kalman_gain_val)
@@ -364,6 +374,9 @@ class PipeModel(object):
             Utilities.ParseException(inst, logger=self.logger)
         finally:
             output.update({'result': result})
+            output.update({'initial_error_estim': initial_error_estim})
+            output.update({'optimisation_steps': optimisation_steps})
+            output.update({'error_optimisation' : error_optimisation})
         
     def step1_format_data(self, output, **input):
         '''
