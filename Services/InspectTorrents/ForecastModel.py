@@ -224,12 +224,25 @@ class PipeModel(object):
         '''
         result                  = True
         try:
+            initial_error_estim = None
+            data_unit           = None
+            items_id            = None
+            optimisation_steps  = None
+            error_optimisation  = None
+
             ## Collecting input data
+            initial_error_estim = None
             for key, value in input.iteritems():
                 if "items_id" == key:
                     items_id    = value
-                elif "data_source" == key:
-                    data_source = value
+                elif "initial_error_estim" == key:
+                    initial_error_estim = value
+                elif "data_unit" == key:
+                    data_unit   = value
+                elif "optimisation_steps" == key:
+                    optimisation_steps = value
+                elif "error_optimisation" == key:
+                    error_optimisation = value
 
             ## Iterating item IDs
             for item_id in items_id:
@@ -240,7 +253,7 @@ class PipeModel(object):
                 index                   = 0
                 current_estimate_init   = measurements.mode()
                 current_estmate_last    = None
-
+                
                 self.logger.debug("  3.1) Calculating current estimate")
                 for row in source.iterrows():
                     measurement         = row[1][0]
@@ -257,21 +270,21 @@ class PipeModel(object):
                     ## Calculating current estimate
                     current_estimate_old= current_estimate
                     current_estimate    = current_estimate + (kalman_gain*(measurement-current_estimate))
-                    ##print("CE:\t %.6f, %.6f, %.6f, %.6f" % (kalman_gain, measurement, current_estimate_old, current_estimate))
+                    ##print("[%d]\t %.6f, %.6f, %.6f, %.6f" % 
+                    ##      (index, kalman_gain, measurement, current_estimate_old, current_estimate))
                     current_estmate_last= current_estimate
                     current_estimate_values.append(current_estimate)
-                    
+
                     index +=1
                 ## Adding new columns with error in estimate and Kalman gain
                 self.logger.debug("  3.2) Adding current estimate as new columns")
                 source['CurrentEstimate'] = current_estimate_values
-                
+
                 self.logger.debug("  3.3) Adding current estimate 1st derivative  as new columns")
                 current_estimate_series = pd.Series(current_estimate_values)
                 derivative              = np.diff(current_estimate_series)
                 derivative              = np.insert(derivative.astype(float), 0, float('nan'))
-                key                     = '1stDerivCurr'
-                source[key]             = derivative
+                source['1stDerivCurr']  = derivative
 
                 output.update({item_id : source})
                 self.logger.debug("-"*65)
@@ -280,6 +293,9 @@ class PipeModel(object):
             Utilities.ParseException(inst, logger=self.logger)
         finally:
             output.update({'result': result})
+            output.update({'initial_error_estim': initial_error_estim})
+            output.update({'optimisation_steps': optimisation_steps})
+            output.update({'error_optimisation' : error_optimisation})
 
     def step2_kalman_gain(self, output, **input):
         '''
