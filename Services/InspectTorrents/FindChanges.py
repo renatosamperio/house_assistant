@@ -79,6 +79,7 @@ class FindChanges():
         considers the 1st derivative of every record in DB.
         '''
         changed_items                   = None
+        newest_item                     = None
         try:
             for item in items_id:
                 ##self.logger.debug("      Looking for changes in [%s] of [%s]", item, record['hash'])
@@ -131,6 +132,14 @@ class FindChanges():
                         #self.logger.debug("        IGNORE [%s] because is not sequential"%(record['hash']))
                         continue
                     
+                    ## Checking latest hits
+                    if len(months_days)<=5:
+                        self.logger.debug("   -> NEWEST: item [%s] with [%s] in less than 5 days"%(item, record["hash"]))
+                        newest_item = record
+                    
+                    if len(months_days)<=10:
+                        self.logger.debug("   -> RECENT: item [%s] with [%s] in less than 10 days"%(item, record["hash"]))
+                    
                     ## Drop first element as it is does not has 1st derivative
                     first_derivative    = months_df[col_index].diff().iloc[1:]
                     
@@ -145,7 +154,7 @@ class FindChanges():
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            return changed_items
+            return changed_items, newest_item
     
     def SaveNameWords(self, all_names):
         try:
@@ -164,6 +173,7 @@ class FindChanges():
         Finds if there is a change time series by using first derivative
         '''
         all_changed_items   = []
+        all_newest_items    = []
         try:
             if self.forecast_item is not None:
                 return
@@ -198,9 +208,11 @@ class FindChanges():
                 ## Double records
 
                 ## Collecting leeches and seeds
-                changed_item = self.FindChange(items_id, record)
+                changed_item, newest_item = self.FindChange(items_id, record)
                 if changed_item is not None:
                     all_changed_items.append(changed_item)
+                if newest_item is not None:
+                    all_newest_items.append(newest_item)
                 counter += 1
                 
 #                 if super_count > 100:
@@ -214,7 +226,7 @@ class FindChanges():
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            return all_changed_items
+            return all_changed_items, all_newest_items
 
 LOG_NAME = 'TaskTool'
 
@@ -231,8 +243,11 @@ def call_task(options):
     
     if options.forecast_file is None:
         taskAction = FindChanges(**args)
-        changes = taskAction.GetMovies(['seeds'])
+        changes, newest = taskAction.GetMovies(['seeds'])
         pprint.pprint(changes)
+        print "="*80
+        pprint.pprint(newest)
+        print "="*80
     else:
         logger.debug('Openning sample model file [%s]'%options.forecast_file)
         with open(options.forecast_file, 'r') as file:
