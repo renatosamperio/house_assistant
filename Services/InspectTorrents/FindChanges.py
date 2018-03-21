@@ -105,17 +105,13 @@ class FindChanges():
                     if int(measure.values()[0]) != 0:
                         break
                     zero_items += 1
-                
+
                 ## Ignoring items with more than 3 days in zeros
                 if zero_items > 3:
-                    self.logger.debug("        IGNORE [%s] with [%d] latest days in zeros"%
-                                  (record["hash"], zero_items))
+                    #self.logger.debug("        IGNORE [%s] with [%d] latest days in zeros"%
+                    #              (record["hash"], zero_items))
                     continue
-                
-                if record["hash"]=='9BDD38672F9ADB66BD88B154D2473EBB84D6A376':
-                    print "months_days"
-                    pprint.pprint(months_days)
-                    print "zero_items:", zero_items
+
                 ## Look for values without missing values
                 months_df               = pd.DataFrame(months)
                 for col_index in months_df:
@@ -132,7 +128,7 @@ class FindChanges():
                     if not isIncremental:
                         ## self.logger.debug("      Index array of [%s] is not sequential for [%s]", item, record['hash'])
                         
-                        self.logger.debug("        IGNORE [%s] because is not sequential"%(record['hash']))
+                        #self.logger.debug("        IGNORE [%s] because is not sequential"%(record['hash']))
                         continue
                     
                     ## Drop first element as it is does not has 1st derivative
