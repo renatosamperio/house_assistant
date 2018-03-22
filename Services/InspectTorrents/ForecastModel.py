@@ -179,78 +179,62 @@ class PipeModel(object):
         '''
         result                  = True
         try:
-            initial_error_estim = None
-            data_unit           = None
-            items_id            = None
-            optimisation_steps  = None
-            error_optimisation  = None
-
+            data_model          = None
+            
             ## Collecting input data
-            initial_error_estim = None
             for key, value in input.iteritems():
-                if "items_id" == key:
-                    items_id    = value
-                elif "initial_error_estim" == key:
-                    initial_error_estim = value
-                elif "data_unit" == key:
-                    data_unit   = value
-                elif "optimisation_steps" == key:
-                    optimisation_steps = value
-                elif "error_optimisation" == key:
-                    error_optimisation = value
+                if "data_model" == key:
+                    data_model = value
 
-            ## Iterating item IDs
-            for item_id in items_id:
-                current_estimate_values = []
-                source                  = input[item_id]
-                measurements            = pd.Series(source['Measurement'].values)
-                series_size             = sum(1 for x in source.iterrows())
-                index                   = 0
-                current_estimate_init   = measurements.mode()
-                current_estmate_last    = None
+            current_estimate_values = []
+            source                  = data_model['model']
+            measurements            = pd.Series(source['Measurement'].values)
+            series_size             = sum(1 for x in source.iterrows())
+            index                   = 0
+            current_estimate_init   = measurements.mode()
+            current_estmate_last    = None
+            
+            self.logger.debug("  3.1) Calculating current estimate")
+            for row in source.iterrows():
+                measurement         = row[1][0]
+                #measurement_1st_der = row[1][1]
+                ##error_estimate      = row[1][2]
+                kalman_gain         = row[1][3]
                 
-                self.logger.debug("  3.1) Calculating current estimate")
-                for row in source.iterrows():
-                    measurement         = row[1][0]
-                    #measurement_1st_der = row[1][1]
-                    ##error_estimate      = row[1][2]
-                    kalman_gain         = row[1][3]
-                    
-                    ## Preparing error in estimate
-                    if index == 0:
-                        current_estimate= current_estimate_init
-                    else:
-                        current_estimate= current_estmate_last
-                    
-                    ## Calculating current estimate
-                    current_estimate_old= current_estimate
-                    current_estimate    = current_estimate + (kalman_gain*(measurement-current_estimate))
-                    ##print("[%d]\t %.6f, %.6f, %.6f, %.6f" % 
-                    ##      (index, kalman_gain, measurement, current_estimate_old, current_estimate))
-                    current_estmate_last= current_estimate
-                    current_estimate_values.append(current_estimate)
+                ## Preparing error in estimate
+                if index == 0:
+                    current_estimate= current_estimate_init
+                else:
+                    current_estimate= current_estmate_last
+                
+                ## Calculating current estimate
+                current_estimate_old= current_estimate
+                current_estimate    = current_estimate + (kalman_gain*(measurement-current_estimate))
+                ##print("[%d]\t %.6f, %.6f, %.6f, %.6f" % 
+                ##      (index, kalman_gain, measurement, current_estimate_old, current_estimate))
+                current_estmate_last= current_estimate
+                current_estimate_values.append(current_estimate)
 
-                    index +=1
-                ## Adding new columns with error in estimate and Kalman gain
-                self.logger.debug("  3.2) Adding current estimate as new columns")
-                source['CurrentEstimate'] = current_estimate_values
+                index +=1
+            ## Adding new columns with error in estimate and Kalman gain
+            self.logger.debug("  3.2) Adding current estimate as new columns")
+            source['CurrentEstimate'] = current_estimate_values
 
-                self.logger.debug("  3.3) Adding current estimate 1st derivative  as new columns")
-                current_estimate_series = pd.Series(current_estimate_values)
-                derivative              = np.diff(current_estimate_series)
-                derivative              = np.insert(derivative.astype(float), 0, float('nan'))
-                source['1stDerivCurr']  = derivative
+            self.logger.debug("  3.3) Adding current estimate 1st derivative  as new columns")
+            current_estimate_series = pd.Series(current_estimate_values)
+            derivative              = np.diff(current_estimate_series)
+            derivative              = np.insert(derivative.astype(float), 0, float('nan'))
+            source['1stDerivCurr']  = derivative
 
-                output.update({item_id : source})
-                self.logger.debug("-"*65)
+            ### output.update({item_id : source})
+            data_model['model'] = source
+            self.logger.debug("-"*65)
         except Exception as inst:
             result = False
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            output.update({'result': result})
-            output.update({'initial_error_estim': initial_error_estim})
-            output.update({'optimisation_steps': optimisation_steps})
-            output.update({'error_optimisation' : error_optimisation})
+            data_model['step_result'] = result
+            output.update({'data_model' : data_model})
 
     def step2_kalman_gain(self, output, **input):
         '''
