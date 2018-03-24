@@ -112,84 +112,66 @@ class PipeModel(object):
         '''
         result                  = True
         try:
-            initial_error_estim = None
-            data_unit           = None
-            items_id            = None
-            optimisation_steps  = None
-            error_optimisation  = None
+            data_model          = None
 
             ## Collecting input data
-            initial_error_estim = None
             for key, value in input.iteritems():
-                if "items_id" == key:
-                    items_id    = value
-                elif "initial_error_estim" == key:
-                    initial_error_estim = value
-                elif "data_unit" == key:
-                    data_unit   = value
-                elif "optimisation_steps" == key:
-                    optimisation_steps = value
-                elif "error_optimisation" == key:
-                    error_optimisation = value
-                    
-            ## Iterating item IDs
-            for item_id in items_id:
-                self.logger.debug("  4.1) Getting derivative statistical values")
-                deriv_curr_estim_values = []
-                deriv_meas_values       = []
-                deriv_sq_err_der        = []
-                source                  = input[item_id]
-                deriv_measurements      = pd.Series(source['1stDerivMeas'].values)
-                deriv_current_estimate  = pd.Series(source['1stDerivCurr'].values)
-                stddev_deriv_meas       = deriv_measurements.std()
-                stddev_deriv_curr_estim = deriv_current_estimate.std()
-                mean_deriv_meas         = deriv_measurements.mean()
-                mean_deriv_curr_estim   = deriv_current_estimate.mean()
-                index                   = 0
-                
-                self.logger.debug("  4.2) Normalising derivatives with standard score")
-                for row in source.iterrows():
-                    measurement_1st_der = row[1][1]
-                    curr_estim_1st_der  = row[1][5]
-                    
-                    ## Normalising 1st derivative of current estimate with
-                    ##   standard score
-                    norm_deriv_curr_est = 0.0
-                    if stddev_deriv_curr_estim != 0.0:
-                        norm_deriv_curr_est = (curr_estim_1st_der-mean_deriv_curr_estim)/stddev_deriv_curr_estim
-                    deriv_curr_estim_values.append(norm_deriv_curr_est)
-                    
-                    ## Normalising 1st derivative of current measurement
-                    ##    with standard score
-                    norm_deriv_meas     = 0.0
-                    if stddev_deriv_meas != 0.0:
-                        norm_deriv_meas = (measurement_1st_der-mean_deriv_meas)/stddev_deriv_meas
-                    deriv_meas_values.append(norm_deriv_meas)
-                    
-                    ## Getting squared error of difference of both
-                    ##   derivatives (measurement and current estimate)
-                    sq_error_deriv      = (norm_deriv_curr_est**2)-(norm_deriv_meas**2)
-                    deriv_sq_err_der.append(sq_error_deriv)
-                    ## print "[%d]\t %.6f, %.6f, %.6f" % (index, norm_deriv_curr_est, norm_deriv_meas, sq_error_deriv)
-                    
-                    index +=1
+                if "data_model" == key:
+                    data_model = value
 
-                self.logger.debug("  4.3) Adding derivative data as new columns")
-                #source["NormDerivCurr"] = deriv_curr_estim_values
-                source["NormDerMeas"]   = deriv_meas_values
-                source["NormDerCurrEst"]= deriv_curr_estim_values
-                source["SqErrorDeriv"]  = deriv_sq_err_der
-                self.logger.debug("-"*65)
+            self.logger.debug("  4.1) Getting derivative statistical values")
+            deriv_curr_estim_values = []
+            deriv_meas_values       = []
+            deriv_sq_err_der        = []
+            source                  = data_model['model']
+            deriv_measurements      = pd.Series(source['1stDerivMeas'].values)
+            deriv_current_estimate  = pd.Series(source['1stDerivCurr'].values)
+            stddev_deriv_meas       = deriv_measurements.std()
+            stddev_deriv_curr_estim = deriv_current_estimate.std()
+            mean_deriv_meas         = deriv_measurements.mean()
+            mean_deriv_curr_estim   = deriv_current_estimate.mean()
+            index                   = 0
+            
+            self.logger.debug("  4.2) Normalising derivatives with standard score")
+            for row in source.iterrows():
+                measurement_1st_der = row[1][1]
+                curr_estim_1st_der  = row[1][5]
                 
-                output.update({item_id : source})
+                ## Normalising 1st derivative of current estimate with
+                ##   standard score
+                norm_deriv_curr_est = 0.0
+                if stddev_deriv_curr_estim != 0.0:
+                    norm_deriv_curr_est = (curr_estim_1st_der-mean_deriv_curr_estim)/stddev_deriv_curr_estim
+                deriv_curr_estim_values.append(norm_deriv_curr_est)
+                
+                ## Normalising 1st derivative of current measurement
+                ##    with standard score
+                norm_deriv_meas     = 0.0
+                if stddev_deriv_meas != 0.0:
+                    norm_deriv_meas = (measurement_1st_der-mean_deriv_meas)/stddev_deriv_meas
+                deriv_meas_values.append(norm_deriv_meas)
+                
+                ## Getting squared error of difference of both
+                ##   derivatives (measurement and current estimate)
+                sq_error_deriv      = (norm_deriv_curr_est**2)-(norm_deriv_meas**2)
+                deriv_sq_err_der.append(sq_error_deriv)
+                ## print "[%d]\t %.6f, %.6f, %.6f" % (index, norm_deriv_curr_est, norm_deriv_meas, sq_error_deriv)
+                
+                index +=1
+
+            self.logger.debug("  4.3) Adding derivative data as new columns")
+            source["NormDerMeas"]   = deriv_meas_values
+            source["NormDerCurrEst"]= deriv_curr_estim_values
+            source["SqErrorDeriv"]  = deriv_sq_err_der
+            self.logger.debug("-"*65)
+            
+            data_model['model'] = source
         except Exception as inst:
             result = False
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            output.update({'result': result})
-            output.update({'initial_error_estim': initial_error_estim})
-            output.update({'optimisation_steps': optimisation_steps})
-            output.update({'error_optimisation' : error_optimisation})
+            data_model['step_result'] = result
+            output.update({'data_model' : data_model})
 
     def step3_current_estimate(self, output, **input):
         '''
