@@ -34,104 +34,77 @@ class PipeModel(object):
         '''
         result                  = True
         try:
-            initial_error_estim = None
-            data_unit           = None
-            items_id            = None
-            error_optimisation  = None
-            optimisation_steps  = None
-
             ## Collecting input data
-            initial_error_estim = None
             for key, value in input.iteritems():
-                if "items_id" == key:
-                    items_id    = value
-                elif "initial_error_estim" == key:
-                    initial_error_estim = value
-                elif "data_unit" == key:
-                    data_unit   = value
-                elif "error_optimisation" == key:
-                    error_optimisation   = value
-                elif "optimisation_steps" == key:
-                    optimisation_steps = value
-                    
-            ## Iterating item IDs
-            for item_id in items_id:
-                self.logger.debug("  6.1) Getting most optimal")
-                source                  = input[item_id]
+                if "data_model" == key:
+                    data_model = value
+
+            self.logger.debug("  6.1) Getting most optimal")
+            source                  = data_model['model']
         except Exception as inst:
             result = False
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            output.update({'result': result})
-            output.update({'initial_error_estim': initial_error_estim})
-            output.update({'optimisation_steps': optimisation_steps})
-            output.update({'error_optimisation' : error_optimisation})
-                
+            data_model['step_result']   = result
+            output.update({'data_model' : data_model})
+
     def step5_optimise(self, output, **input):
         '''
         Adds columns for current estimate and its 1st derivative
         '''
         result                  = True
         try:
-            initial_error_estim = None
-            data_unit           = None
-            items_id            = None
-            error_optimisation  = None
-            optimisation_steps  = None
-
+            data_model          = None
+            
             ## Collecting input data
-            initial_error_estim = None
             for key, value in input.iteritems():
-                if "items_id" == key:
-                    items_id    = value
-                elif "initial_error_estim" == key:
-                    initial_error_estim = value
-                elif "data_unit" == key:
-                    data_unit   = value
-                elif "error_optimisation" == key:
-                    error_optimisation   = value
-                elif "optimisation_steps" == key:
-                    optimisation_steps = value
+                if "data_model" == key:
+                    data_model = value
                     
+            ## Collecting step data
+            initial_error_estim     = data_model['initial_error_estim']
+            error_optimisation      = data_model['error_optimisation']
+            optimisation_steps      = data_model['optimisation_steps']
+            
             ## Iterating item IDs
-            for item_id in items_id:
-                self.logger.debug("  5.1) Getting derivative statistical values")
-                deriv_curr_estim_values = []
-                source                  = input[item_id]
-                deriv_sq_error          = pd.Series(source['SqErrorDeriv'].values)
-                stddev_deriv_sq_error   = deriv_sq_error.std()
+            ### for item_id in items_id:
+            self.logger.debug("  5.1) Getting derivative statistical values")
+            deriv_curr_estim_values = []
+            #source                  = input[item_id]
+            source                  = data_model['model']
+            deriv_sq_error          = pd.Series(source['SqErrorDeriv'].values)
+            stddev_deriv_sq_error   = deriv_sq_error.std()
 
-                ## Updating error optimisation table
-                if error_optimisation is None:
-                    ## There is no table, creating one
-                    error_optimisation  = pd.DataFrame([], 
-                                                       index=optimisation_steps, 
-                                                       columns = ['SumDerivStdev', '1stDerivSum'])
-                
-                self.logger.debug("  5.2) Calculating 1st derivative of std of sum of squared error")
-                list_indexes = list(error_optimisation.index.get_values())
-                index_value = list_indexes.index(initial_error_estim)
-                
-                error_optimisation.iloc[index_value]['SumDerivStdev']   = stddev_deriv_sq_error
-                
-                ## Calculating 1st derivative for sum of squared errors
-                if index_value == 0:
-                    ## First derivative is a NaN
-                    der_sum_der_std         = float('nan')
-                else:
-                    previous_value          = error_optimisation.iloc[index_value-1]['SumDerivStdev']
-                    der_sum_der_std         = stddev_deriv_sq_error - previous_value
-                error_optimisation.iloc[index_value]['1stDerivSum'] = der_sum_der_std
-                self.logger.debug("-"*65)
+            ## Updating error optimisation table
+            if error_optimisation is None:
+                ## There is no table, creating one
+                error_optimisation  = pd.DataFrame([], 
+                                                   index=optimisation_steps, 
+                                                   columns = ['SumDerivStdev', '1stDerivSum'])
+            
+            self.logger.debug("  5.2) Calculating 1st derivative of std of sum of squared error")
+            list_indexes = list(error_optimisation.index.get_values())
+            index_value = list_indexes.index(initial_error_estim)
+            
+            error_optimisation.iloc[index_value]['SumDerivStdev']   = stddev_deriv_sq_error
+            
+            ## Calculating 1st derivative for sum of squared errors
+            if index_value == 0:
+                ## First derivative is a NaN
+                der_sum_der_std         = float('nan')
+            else:
+                previous_value          = error_optimisation.iloc[index_value-1]['SumDerivStdev']
+                der_sum_der_std         = stddev_deriv_sq_error - previous_value
+            error_optimisation.iloc[index_value]['1stDerivSum'] = der_sum_der_std
+            data_model['error_optimisation'] = error_optimisation
+            self.logger.debug("-"*65)
                 
         except Exception as inst:
             result = False
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            output.update({'result': result})
-            output.update({'initial_error_estim': initial_error_estim})
-            output.update({'optimisation_steps': optimisation_steps})
-            output.update({'error_optimisation' : error_optimisation})
+            data_model['step_result'] = result
+            output.update({'data_model' : data_model})
             
     def step4_normalise(self, output, **input):
         '''
