@@ -497,8 +497,6 @@ class FindChanges():
                 print "-"*40
         except Exception as inst:
           Utilities.ParseException(inst, logger=logger)
-
-
 LOG_NAME = 'TaskTool'
 
 def call_task(options):
@@ -511,6 +509,7 @@ def call_task(options):
     args = {}
     args.update({'database':        options.database})
     args.update({'collection':      options.collection})
+    args.update({'list_term':       options.list_term})
     
     if options.slack_file is not None:
         newest_items    = options.slack_file
@@ -518,13 +517,14 @@ def call_task(options):
         taskAction      = FindChanges(**args)
         taskAction.PostNew(newest_items)
     elif options.forecast_file is None:
+        
         taskAction = FindChanges(**args)
         changes, newest_items = taskAction.GetMovies(['seeds'])
         #pprint.pprint(changes)
         #print "="*80
-        #taskAction.PostNew(newest_items)
-        pprint.pprint(newest_items)
-        print "="*80
+        taskAction.PostNew(newest_items)
+        #pprint.pprint(newest_items)
+        #print "="*80
     else:
         logger.debug('Openning sample model file [%s]'%options.forecast_file)
         with open(options.forecast_file, 'r') as file:
