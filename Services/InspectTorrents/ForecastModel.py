@@ -457,11 +457,11 @@ class ForecastModel():
                     return
 
                 if self.fsm.state == 'step6':
-                    self.logger.debug( "Interrupting FSM sequence")
+                    self.logger.debug( "  Interrupting FSM sequence")
                     self.logger.debug( "  Storing result data model")
                     result  = output['data_model']
                     self.fsm.restart()
-                    self.logger.debug( "  Restarting FSM to [%s]"%self.fsm.state)
+                    self.logger.debug( "Restarting FSM to [%s]"%self.fsm.state)
 
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
