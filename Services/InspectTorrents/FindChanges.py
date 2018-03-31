@@ -518,8 +518,8 @@ def call_task(options):
         taskAction.PostNew(newest_items)
     elif options.forecast_file is None:
         
-        taskAction = FindChanges(**args)
-        changes, newest_items = taskAction.GetMovies(['seeds'])
+        taskAction              = FindChanges(**args)
+        changes, newest_items   = taskAction.GetMovies(['seeds'])
         #pprint.pprint(changes)
         #print "="*80
         taskAction.PostNew(newest_items)
