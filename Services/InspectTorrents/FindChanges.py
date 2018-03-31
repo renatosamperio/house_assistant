@@ -236,6 +236,269 @@ class FindChanges():
         finally:
             return all_changed_items, all_newest_items
 
+    def PostNew(self, newest_items):
+        ''' '''
+        def list_values(key):
+            try:
+                key_item    = new_item[key]['value']
+                item_month  = key_item.keys()[0]
+                item_days   = key_item[item_month].keys()
+                lst_values  = [key_item[item_month][day] for day in item_days]
+                lst_values  = list(map(int, lst_values))
+                array_values=np.array(lst_values)
+                return array_values
+            except Exception as inst:
+              Utilities.ParseException(inst, logger=logger)
+        
+        def clean_sentence(sentence):
+            try:
+                ## Removing special works from torrent
+                splitted        = sentence.strip().split()
+                new_sentence    = []
+                for token in splitted:
+                    if token.lower() not in self.with_changes:
+                        new_sentence.append(token)
+                new_sentence    = ' '.join(new_sentence)
+                
+                return new_sentence
+            except Exception as inst:
+              Utilities.ParseException(inst, logger=logger)
+        
+        def get_imdb_best_title(torrent_info, comparator):
+            try:
+                from operator import itemgetter
+                from imdbpie import Imdb
+                
+                imdb            = Imdb()
+                updated_imdb    = []
+                imdb_selected   = []
+                item_selected   = {}
+                year_found      = None
+                torrent_title   = torrent_info['torrent_title']
+                ###print "\t~~~~> before:\t\t", torrent_title
+                
+                ## Using torrent title until year,
+                ##   only if torrent title has a year
+                title_has_year  = re.match(r'.*([1-3][0-9]{3})', torrent_title)
+                if title_has_year is not None:
+                    year_found  = title_has_year.group(1)
+                    
+                    ## Adding torrent title year
+                    torrent_info.update({'year':year_found})
+                    ###print "\t~~~~> year_found:\t", year_found
+                    #after = torrent_title.replace(title_has_year.group(1),'')
+                    splitted = torrent_title.split(year_found)[0]
+                else:
+                    splitted = torrent_title
+                torrent_info['torrent_title'] = splitted
+                ###print "\t~~~~> splitted:\t\t", splitted
+                ###counter = 0
+                ##print "= "*20
+                
+                ## Getting IMDB information
+                imdb_data       = imdb.search_for_title(splitted)
+                
+                ## Pre-selecting only IMDB titles that 
+                ##   look very similar to torrent title
+                for imdb_item in imdb_data:
+                    score = comparator.score(splitted, imdb_item['title'])
+                    year_matches    = year_found == imdb_item['year']
+                    item_type       = 'feature' == imdb_item['type']
+                    
+                    ## Adding only very similar titles
+                    if score > 0.98:
+                        imdb_item.update({'score':score})
+                        imdb_item.update({'year_matches':year_matches})
+                        updated_imdb.append(imdb_item)
+                    
+                    ###print "\t\t[",counter,"]   \t\t", score,"\t[" ,imdb_item['title'],"]\t", year_matches, "\t", item_type
+                    ###counter += 1
+                    ##pprint.pprint(imdb_item)
+                    ##print "= "*20
+                    
+                ## Sorting IMDB retrieved items by similarity score
+                sorted_imdb = sorted(updated_imdb, key=itemgetter('score'), reverse=True) 
+                ##print "~"*40
+                ##pprint.pprint(sorted_imdb)
+                ##print "~"*40
+                
+                
+                ## Checking if torrent year matches, otherwise 
+                ##   provide only feature type IMDB items
+                better_item_not_found           = False
+                for imdb_item in sorted_imdb:
+                    item_added                  = False
+                    new_item                    = {}
+                    if imdb_item['year_matches']:
+                        #print imdb_item
+                        #print "= "*20
+                        better_item_not_found   = True
+                        item_added              = True
+                    elif not better_item_not_found and 'feature' == imdb_item['type']:
+                        #print imdb_item
+                        #print "@ "*20
+                        item_added              = True
+                        
+                    ## Retrieving additional IMDB information
+                    ##   and adding item
+                    if item_added:
+                        imdb_id                 = imdb_item['imdb_id']
+                        title_info              = imdb.get_title(imdb_id)
+                        
+                        ###print "+ "*40, 'title_info'
+                        ###pprint.pprint(title_info)
+                        ###print "+ "*40
+                        
+                        imdb_image_url          = ''
+                        if 'image' in title_info['base'].keys():
+                            imdb_image_url          = title_info['base']['image']['url']
+                        else:
+                            self.logger.debug("-   Image URL not found")
+                            
+                        imdb_raiting            = ''
+                        if 'rating' in title_info['ratings'].keys():
+                            imdb_raiting        = str(title_info['ratings']['rating'])
+                        else:
+                            self.logger.debug("-   Raiting not found")
+
+                        imdb_plot               = ''
+                        if 'outline' in title_info['plot'].keys():
+                            imdb_plot           = title_info['plot']['outline']['text']
+                        else:
+                            self.logger.debug("-   Plot not found")
+
+                        
+                        imdb_title_url          = title_info['base']['id']
+
+                        imdb_item.update({'raiting':    imdb_raiting})
+                        imdb_item.update({'plot':       imdb_plot})
+                        imdb_item.update({'image_url':  imdb_image_url})
+                        imdb_item.update({'title_url':  'http://www.imdb.com/'+imdb_title_url})
+                        
+                        
+                        #new_item.update({'imdb_info':imdb_item})
+                        
+                        imdb_selected.append(imdb_item)
+                
+                item_selected.update({'imdb_info':imdb_selected})
+                item_selected.update({'torrent_info':torrent_info})
+            except Exception as inst:
+              Utilities.ParseException(inst, logger=logger)
+            finally:
+                return item_selected
+            
+        try:
+            ## Getting Slack and IMDB clients
+            slack_token         = os.environ["SLACK_API_TOKEN"]
+            slack_client        = SlackClient(slack_token)
+            comparator          = Similarity.Similarity()
+            for new_item in newest_items:
+                
+                ## Getting torrent data
+                name            = new_item['name']
+                clean_name      = clean_sentence(name)
+                link            = new_item['link']
+                size            = new_item['size']
+                seeds           = list_values('seeds')
+                leeches         = list_values('leeches')
+                #pprint.pprint(new_item)
+                
+                ## Torrent information
+                torrent_info    = {
+                    'torrent_title':    clean_name,
+                    'torrent_link':     link,
+                    'seeds': {
+                        'mean':         seeds.mean(),
+                        'stdev':        seeds.std()
+                    },
+                    'leeches': {
+                        'mean':         leeches.mean(),
+                        'stdev':        leeches.std()
+                    }
+                }
+                
+                ## Searching for IMDB info
+                imdb_selected   = get_imdb_best_title(torrent_info, comparator)
+
+
+# {'imdb_info': [{'image_url': u'https://ia.media-imdb.com/images/M/MV5BMTY0NjU4NjE4Nl5BMl5BanBnXkFtZTgwNjk0ODY5MjI@._V1_.jpg',
+#                 u'imdb_id': u'tt7131870',
+#                 'plot': u"China's deadliest special forces operative settles into a quiet life on the sea. When sadistic mercenaries begin targeting nearby civilians, he must leave his newfound peace behind and return to his duties as a soldier and protector.",
+#                 'raiting': 6.3,
+#                 'score': 1.0,
+#                 u'title': u'Wolf Warrior 2',
+#                 u'type': u'feature',
+#                 u'year': u'2017',
+#                 'year_matches': True}],
+#  'torrent_info': {'leeches': {'mean': 1016.0, 'stdev': 0.0},
+#                   'seeds': {'mean': 6425.0, 'stdev': 0.0},
+#                   'torrent_link': u'http://limetorrents.cc/Wolf-Warrior-2-2017-BDRip(AVC)-by-KinoHitHD-torrent-10555891.html',
+#                   'torrent_title': u'Wolf Warrior 2 2017 by',
+#                   'year': u'2017'}}
+
+
+                print "==> imdb_selected:"
+                pprint.pprint(imdb_selected)
+                
+                label_time_now  = datetime.datetime.now().strftime("Found on the %d of %B, %Y")
+                label_name      = str(imdb_selected['torrent_info']['torrent_title'])
+                label_seeds     = str(int(imdb_selected['torrent_info']['seeds']['mean']))
+                label_leeches   = str(int(imdb_selected['torrent_info']['leeches']['mean']))
+                label_torr_url  = imdb_selected['torrent_info']['torrent_link']
+                
+                attachments             = []
+                for imdb_item in imdb_selected['imdb_info']:
+                    fields              = []
+                    seeds           = {
+                                        "title": "Seeds",
+                                        "value": label_seeds,
+                                        "short": True
+                                    }
+                    fields.append(seeds)
+                    leeches         = {
+                                        "title": "Leeches",
+                                        "value": label_leeches,
+                                        "short": True
+                                    }
+                    fields.append(leeches)
+                    if len(imdb_item['raiting'])>0:
+                        raiting_field= {
+                                        "title": "Raiting",
+                                        "value": str(imdb_item['raiting']),
+                                        "short": True
+                                    }
+                        fields.append(raiting_field)
+                        
+                    attachement_item    = { "title":        imdb_item['title']+ " - " +imdb_item['year'] ,
+                                            "title_link":   imdb_item['title_url'],
+                                            "image_url":    imdb_item['image_url'],
+                                            
+                                            "author_name": "Lime Torrents Crawler",
+                                            "author_icon": "https://cdn.appmus.com/images/4bfa32737acbaaa618ef471b37099ad7.jpg",
+                                            "author_link":  label_torr_url,
+                                            
+                                            "text":         imdb_item['plot'],
+                                            "pretext":      label_time_now,
+                                            
+                                            "footer":       "IMDB",
+                                            "footer_icon":  'https://cdn4.iconfinder.com/data/icons/socialmediaicons_v120/48/imdb.png',
+                                            
+                                            "fields":       fields,
+                                          }
+                    attachments.append(attachement_item)
+                
+                slack_client.api_call(
+                  "chat.postMessage",
+                  channel="test",
+                  text="",
+                  as_user=True,
+                  attachments=attachments
+                )
+                print "-"*40
+        except Exception as inst:
+          Utilities.ParseException(inst, logger=logger)
+
+
 LOG_NAME = 'TaskTool'
 
 def call_task(options):
