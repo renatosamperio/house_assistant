@@ -10,6 +10,7 @@ import re
 import csv, codecs, cStringIO
 import pprint
 import random
+import datetime
 
 import pandas as pd
 import numpy as np
@@ -18,10 +19,16 @@ from scipy import stats #stats.mode
 from optparse import OptionParser, OptionGroup
 from collections import Counter
 from transitions import Machine
+from slackclient import SlackClient
 
 from Utils import Utilities
+from Utils import Similarity
 from Utils import MongoAccess
 from ForecastModel import ForecastModel
+
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("boto").setLevel(logging.WARNING)
+#logging.getLogger("imdbpie.imdbpie").setLevel(logging.WARNING)
 
 class FindChanges():
     def __init__(self, **kwargs):
@@ -52,7 +59,8 @@ class FindChanges():
                     self.forecast_item = value
                 elif "with_changes" == key:
                     self.with_changes = self.LoadTerms('list_termx.txt')
-                    
+                elif "list_term" == key:
+                    self.with_changes = self.LoadTerms(value)
 
             if self.forecast_item is None:
                 ## Setting item started for reporting to device action
@@ -241,12 +249,18 @@ def call_task(options):
     args.update({'database':        options.database})
     args.update({'collection':      options.collection})
     
-    if options.forecast_file is None:
+    if options.slack_file is not None:
+        newest_items    = options.slack_file
+        args.update({'list_term':   options.list_term})
+        taskAction      = FindChanges(**args)
+        taskAction.PostNew(newest_items)
+    elif options.forecast_file is None:
         taskAction = FindChanges(**args)
-        changes, newest = taskAction.GetMovies(['seeds'])
-        pprint.pprint(changes)
-        print "="*80
-        pprint.pprint(newest)
+        changes, newest_items = taskAction.GetMovies(['seeds'])
+        #pprint.pprint(changes)
+        #print "="*80
+        #taskAction.PostNew(newest_items)
+        pprint.pprint(newest_items)
         print "="*80
     else:
         logger.debug('Openning sample model file [%s]'%options.forecast_file)
@@ -288,13 +302,32 @@ if __name__ == '__main__':
               type="string",
               action='store',
               default=None,
-              help='Input file wiht sample data')
+              help='Input file with sample data')
+  forecast_parser.add_option('--slack_file',
+              type="string",
+              action='store',
+              default=None,
+              help='Post results in slack')
+  forecast_parser.add_option('--list_term',
+              type="string",
+              action='store',
+              default=None,
+              help='List of terms to ignore')
     
   parser.add_option_group(forecast_parser)
   
   (options, args) = parser.parse_args()
   
-  if options.forecast_file is None:
+  if options.slack_file is not None:     
+    if options.list_term is None:
+         parser.error("Missing required option: --list_term='valid_file_path'")
+    with open(options.slack_file, 'r') as file:
+        slack_file = json.load(file)
+        options.slack_file = slack_file
+        options.database = 'limetorrents'
+        options.collection = 'movies'
+      
+  elif options.forecast_file is None:
       if options.database is None:
         parser.error("Missing required option: --database='valid_db_name'")
         sys.exit()
