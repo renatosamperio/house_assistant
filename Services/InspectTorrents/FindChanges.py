@@ -364,7 +364,7 @@ class FindChanges():
                                     if 'url' in imageKey:
                                         imdb_image_url = similarity_item['image']['url']
                                         self.logger.debug("      Using image from similarities")
-
+                                        break
                         imdb_raiting            = ''
                         if 'rating' in title_info['ratings'].keys():
                             imdb_raiting        = str(title_info['ratings']['rating'])
