@@ -356,7 +356,15 @@ class FindChanges():
                             imdb_image_url          = title_info['base']['image']['url']
                         else:
                             self.logger.debug("-   Image URL not found")
-                            
+                            self.logger.debug("-   Looking in similarities for images...")
+                            for similarity_item in title_info['similarities']:
+                                itemKeys        = similarity_item.keys()
+                                if 'image' in itemKeys:
+                                    imageKey    = similarity_item['image'].keys()
+                                    if 'url' in imageKey:
+                                        imdb_image_url = similarity_item['image']['url']
+                                        self.logger.debug("      Using image from similarities")
+
                         imdb_raiting            = ''
                         if 'rating' in title_info['ratings'].keys():
                             imdb_raiting        = str(title_info['ratings']['rating'])
