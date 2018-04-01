@@ -32,6 +32,7 @@ logging.getLogger("boto").setLevel(logging.WARNING)
 
 reload(sys)
 sys.setdefaultencoding('utf8')
+
 class FindChanges():
     def __init__(self, **kwargs):
         '''Service task constructor'''
@@ -299,6 +300,7 @@ class FindChanges():
                 
                 ## Getting IMDB information
                 imdb_data       = imdb.search_for_title(splitted)
+                self.logger.debug("+ Getting IMDB [%s] items"%(str(len(imdb_data))))
                 
                 ## Pre-selecting only IMDB titles that 
                 ##   look very similar to torrent title
@@ -621,4 +623,3 @@ if __name__ == '__main__':
         sys.exit()
   ##print options
   call_task(options)
-  
