@@ -30,6 +30,8 @@ logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 logging.getLogger("boto").setLevel(logging.WARNING)
 #logging.getLogger("imdbpie.imdbpie").setLevel(logging.WARNING)
 
+reload(sys)
+sys.setdefaultencoding('utf8')
 class FindChanges():
     def __init__(self, **kwargs):
         '''Service task constructor'''
@@ -468,16 +470,28 @@ class FindChanges():
                                         "short": True
                                     }
                         fields.append(raiting_field)
-                        
-                    attachement_item    = { "title":        imdb_item['title']+ " - " +imdb_item['year'] ,
-                                            "title_link":   imdb_item['title_url'],
-                                            "image_url":    imdb_item['image_url'],
+                    
+                    imdb_title      = str(imdb_item['title'])
+                    imdb_year       = str(imdb_item['year'])
+                    imdb_title_url  = str(imdb_item['title_url'])
+                    imdb_image_url  = str(imdb_item['image_url'])
+                    imdb_plot       = str(imdb_item['plot']).encode('utf-8').strip()
+                    
+                    if imdb_item['year'] is None:
+                        torrent_year        = str(imdb_selected['torrent_info']['year'])
+                        if torrent_year is not None or torrent_year != '':
+                            attachment_title= imdb_title + " - " +torrent_year
+                    else:
+                        attachment_title = imdb_title + " - " + imdb_year
+                    attachement_item    = { "title":        attachment_title,
+                                            "title_link":   imdb_title_url,
+                                            "image_url":    imdb_image_url,
                                             
                                             "author_name": "Lime Torrents Crawler",
                                             "author_icon": "https://cdn.appmus.com/images/4bfa32737acbaaa618ef471b37099ad7.jpg",
                                             "author_link":  label_torr_url,
                                             
-                                            "text":         imdb_item['plot'],
+                                            "text":         imdb_plot,
                                             "pretext":      label_time_now,
                                             
                                             "footer":       "IMDB",
