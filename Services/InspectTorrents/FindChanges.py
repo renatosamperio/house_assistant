@@ -51,19 +51,28 @@ class FindChanges():
             self.torrent_terms    = None
             self.forecast_item    = None
             self.db_handler       = None
+            self.slack_channel    = None
+            self.last_days        = 5
 
             # Generating instance of strategy  
             for key, value in kwargs.iteritems():
                 if "database" == key:
                     self.database = value
+                elif "last_days" == key:
+                    self.last_days = value
                 elif "collection" == key:
                     self.collection = value
+                elif "slack_channel" == key:
+                    self.slack_channel = value
+                    self.logger.debug("  +   Setting up channel [%s]"%self.slack_channel)
                 elif "forecast_item" == key:
                     self.forecast_item = value
                 elif "with_changes" == key:
-                    self.with_changes = self.LoadTerms('list_termx.txt')
+                    if value is not None:
+                        self.with_changes = self.LoadTerms('list_termx.txt')
                 elif "list_term" == key:
-                    self.with_changes = self.LoadTerms(value)
+                    if value is not None:
+                        self.with_changes = self.LoadTerms(value)
 
             if self.forecast_item is None:
                 ## Setting item started for reporting to device action
