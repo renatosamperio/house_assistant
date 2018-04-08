@@ -540,29 +540,40 @@ def call_task(options):
     logger.debug('Calling task from command line')
     
     args = {}
-    args.update({'database':        options.database})
-    args.update({'collection':      options.collection})
-    args.update({'list_term':       options.list_term})
+    args.update({'database':                options.database})
+    args.update({'collection':              options.collection})
+    args.update({'list_term':               options.list_term})
     
     if options.slack_file is not None:
+        logger.debug('  Options set for using modelled data')
         newest_items    = options.slack_file
-        args.update({'list_term':   options.list_term})
+        args.update({'list_term':           options.list_term})
+        ## Calling methods
         taskAction      = FindChanges(**args)
         taskAction.PostNew(newest_items)
-    elif options.forecast_file is None:
         
+    elif options.plot:
+        logger.debug('  Options set for plotting')
         taskAction              = FindChanges(**args)
         changes, newest_items   = taskAction.GetMovies(['seeds'])
-        #pprint.pprint(changes)
-        #print "="*80
+    elif options.forecast_file is None:
+        logger.debug('  Options set for normal use')
+        if options.slack_channel is not None:
+            args.update({'slack_channel':   options.slack_channel})
+        
+        ## Checking if slack token was provided
+        if "SLACK_API_TOKEN" not in os.environ.keys():
+            logger.debug("Slack token not found!")
+            return
+            
+        taskAction              = FindChanges(**args)
+        changes, newest_items   = taskAction.GetMovies(['seeds'])
         taskAction.PostNew(newest_items)
-        #pprint.pprint(newest_items)
-        #print "="*80
     else:
-        logger.debug('Openning sample model file [%s]'%options.forecast_file)
+        logger.debug('  Options set for using sample model file [%s]'%options.forecast_file)
         with open(options.forecast_file, 'r') as file:
             forecast_item = json.load(file)
-            args.update({'forecast_item': forecast_item})
+            args.update({'forecast_item':   forecast_item})
         taskAction = ForecastModel(**args)
         for data_unit in forecast_item:
             #taskAction.Run(data_unit, ['leeches', 'seeds'])
