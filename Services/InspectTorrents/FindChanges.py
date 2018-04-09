@@ -92,7 +92,7 @@ class FindChanges():
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
 
-    def FindChange(self, items_id, record):
+    def FindChange(self, items_id, record, with_changes=False):
         '''
         Finds if data has changes by looking into time series models
         with requested items ID (leeches and seeds). The changes 
@@ -160,17 +160,18 @@ class FindChanges():
                     if len(months_days)<=10:
                         self.logger.debug("   -> RECENT: item [%s] with [%s] in less than 10 days"%(item, record["hash"]))
                     
-                    ## Drop first element as it is does not has 1st derivative
-                    first_derivative    = months_df[col_index].diff().iloc[1:]
-                    
-                    ## Check items that derivative is not zero
-                    has_zeros           = first_derivative[first_derivative >0]
-                    if has_zeros.count() > 0:
-                        self.logger.debug("  Something changed in [%s] of item [%s]", 
-                                          item, record['hash'])
-                        ## Add items if they are not included
-                        changed_items = record
-                        return
+                    if with_changes:
+                        ## Drop first element as it is does not has 1st derivative
+                        first_derivative    = months_df[col_index].diff().iloc[1:]
+                        
+                        ## Discard items that had no change in its values
+                        has_zeros           = first_derivative[first_derivative >0]
+                        if has_zeros.count() > 0:
+                            self.logger.debug("  Something changed in [%s] of item [%s]", 
+                                              item, record['hash'])
+                            ## Add items if they are not included
+                            changed_items = record
+                            return
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
         finally:
