@@ -100,6 +100,7 @@ class FindChanges():
         '''
         changed_items                   = None
         newest_item                     = None
+        not_sequential                  = None
         try:
             for item in items_id:
                 ##self.logger.debug("      Looking for changes in [%s] of [%s]", item, record['hash'])
@@ -150,6 +151,7 @@ class FindChanges():
                         ## self.logger.debug("      Index array of [%s] is not sequential for [%s]", item, record['hash'])
                         
                         #self.logger.debug("        IGNORE [%s] because is not sequential"%(record['hash']))
+                        not_sequential = record
                         continue
                     
                     ## Checking latest hits
@@ -175,7 +177,7 @@ class FindChanges():
         except Exception as inst:
             Utilities.ParseException(inst, logger=self.logger)
         finally:
-            return changed_items, newest_item
+            return changed_items, newest_item, not_sequential
     
     def SaveNameWords(self, all_names):
         try:
@@ -225,11 +227,9 @@ class FindChanges():
 #                 new_name = ' '.join(list(set(splitted_names) - set(self.torrent_terms)))
 #                 print "=== N:", new_name
 #                 print "="*100
-                
-                ## Double records
 
                 ## Collecting leeches and seeds
-                changed_item, newest_item = self.FindChange(items_id, record)
+                changed_item, newest_item, not_sequential = self.FindChange(items_id, record)
                 if changed_item is not None:
                     all_changed_items.append(changed_item)
                 if newest_item is not None:
