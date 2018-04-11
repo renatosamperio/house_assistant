@@ -121,14 +121,15 @@ class FindChanges():
                 ##   Reverser search for find latest days
                 months_days = sorted(months_days, reverse=True)
                 
-                ##   Find if last items are in zero
+                ##   Find items last days have no activity (are in zero)
                 zero_items = 0
                 for measure in months_days:
                     if int(measure.values()[0]) != 0:
                         break
                     zero_items += 1
 
-                ## Ignoring items with more than 3 days in zeros
+                ## Ignoring items with more than 3 days without 
+                ##    activity (are in zeros)
                 if zero_items > 3:
                     #self.logger.debug("        IGNORE [%s] with [%d] latest days in zeros"%
                     #              (record["hash"], zero_items))
@@ -146,7 +147,7 @@ class FindChanges():
                     sequencesArray      = Utilities.IsNpArrayConsecutive(months_arr_seq)
                     isIncremental       = len(sequencesArray)==1
                     
-                    ## Do not continue if it is not sequential
+                    ## Discard items that are not sequential
                     if not isIncremental:
                         ## self.logger.debug("      Index array of [%s] is not sequential for [%s]", item, record['hash'])
                         
@@ -155,12 +156,13 @@ class FindChanges():
                         continue
                     
                     ## Checking latest hits
-                    if len(months_days)<=5:
-                        self.logger.debug("   -> NEWEST: item [%s] with [%s] in less than 5 days"%(item, record["hash"]))
+                    if len(months_days)<=self.last_days:
+                        self.logger.debug("   -> NEWEST: item [%s] with [%s] in less than [%s] days"%
+                                          (item, record["hash"], self.last_days))
                         newest_item = record
                     
-                    if len(months_days)<=10:
-                        self.logger.debug("   -> RECENT: item [%s] with [%s] in less than 10 days"%(item, record["hash"]))
+#                     if len(months_days)<=10:
+#                         self.logger.debug("   -> RECENT: item [%s] with [%s] in less than 10 days"%(item, record["hash"]))
                     
                     if with_changes:
                         ## Drop first element as it is does not has 1st derivative
@@ -268,6 +270,10 @@ class FindChanges():
                 ## Removing special works from torrent
                 splitted        = sentence.strip().split()
                 new_sentence    = []
+                
+                ## Split sentence and look if every word
+                ##    is in the special list of characters
+                ##    to remove.
                 for token in splitted:
                     if token.lower() not in self.with_changes:
                         new_sentence.append(token)
@@ -459,8 +465,6 @@ class FindChanges():
 #                   'year': u'2017'}}
 
 
-                print "==> imdb_selected:"
-                pprint.pprint(imdb_selected)
                 
                 label_time_now  = datetime.datetime.now().strftime("Found on the %d of %B, %Y")
                 label_name      = str(imdb_selected['torrent_info']['torrent_title'])
