@@ -167,6 +167,19 @@ class LimeTorrentsCrawler(Config):
         magnet = soup.findAll('div', class_='dltorrent')[2].a['href']
         return magnet
 
+    def get_magnet_download(self, link):
+        """
+        Module to get magnetic link of torrent.
+
+        For 1337x, limetorrents modules.
+        Magnetic link is fetched from torrent's info page.
+        """
+        self.logger.debug("Fetching magnetic link with [%s]"%self.class_name)
+        soup = self.http_request(link)
+        magnet = soup.findAll('div', class_='dltorrent')[2].a['href']
+        download_link = soup.findAll('div', class_='dltorrent')[0].a['href']
+        return magnet, download_link
+    
     def check_proxy(self):
         """
         To check proxy availability.
