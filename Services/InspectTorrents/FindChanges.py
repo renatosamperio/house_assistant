@@ -241,7 +241,7 @@ class FindChanges():
                 array_values=np.array(lst_values)
                 return array_values
             except Exception as inst:
-              Utilities.ParseException(inst, logger=logger)
+              Utilities.ParseException(inst, logger=self.logger)
         
         def clean_sentence(sentence):
             try:
@@ -259,7 +259,7 @@ class FindChanges():
                 
                 return new_sentence
             except Exception as inst:
-              Utilities.ParseException(inst, logger=logger)
+              Utilities.ParseException(inst, logger=self.logger)
         
         def get_imdb_best_title(torrent_info, comparator):
             try:
