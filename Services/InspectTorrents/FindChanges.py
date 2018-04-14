@@ -405,14 +405,17 @@ class FindChanges():
                 name            = new_item['name']
                 clean_name      = clean_sentence(name)
                 link            = new_item['link']
-                size            = new_item['size']
+                size            = str(new_item['size'])
                 seeds           = list_values('seeds')
                 leeches         = list_values('leeches')
-                #pprint.pprint(new_item)
+                magnet, dLink   = look_for_magnet(link)
                 
                 ## Torrent information
                 torrent_info    = {
                     'torrent_title':    clean_name,
+                    'size':             size,
+                    'magnet':           magnet,
+                    'download_link':    dLink,
                     'torrent_link':     link,
                     'seeds': {
                         'mean':         seeds.mean(),
@@ -451,17 +454,25 @@ class FindChanges():
                 label_seeds     = str(int(imdb_selected['torrent_info']['seeds']['mean']))
                 label_leeches   = str(int(imdb_selected['torrent_info']['leeches']['mean']))
                 label_torr_url  = imdb_selected['torrent_info']['torrent_link']
+                lable_size      = imdb_selected['torrent_info']['size']
+                label_download  = '<'+imdb_selected['torrent_info']['download_link']+'|:arrow_down_small:>'
 
                 attachments         = []
                 for imdb_item in imdb_selected['imdb_info']:
                     fields          = []
-                    label_genres    = imdb_item['genres']
-                    genres          = {
-                                        "title": "Genres",
-                                        "value": label_genres,
+                    size           = {
+                                        "title": "Size",
+                                        "value": lable_size,
                                         "short": True
                                     }
-                    fields.append(genres)
+                    fields.append(size)
+                    if len(imdb_item['raiting'])>0:
+                        raiting_field= {
+                                        "title": "Raiting",
+                                        "value": str(imdb_item['raiting']),
+                                        "short": True
+                                    }
+                        fields.append(raiting_field)
                     seeds           = {
                                         "title": "Seeds",
                                         "value": label_seeds,
@@ -474,13 +485,19 @@ class FindChanges():
                                         "short": True
                                     }
                     fields.append(leeches)
-                    if len(imdb_item['raiting'])>0:
-                        raiting_field= {
-                                        "title": "Raiting",
-                                        "value": str(imdb_item['raiting']),
+                    label_genres    = imdb_item['genres']
+                    genres          = {
+                                        "title": "Genres",
+                                        "value": label_genres,
                                         "short": True
                                     }
-                        fields.append(raiting_field)
+                    fields.append(genres)
+                    dLink          = {
+                                        "title": "Download",
+                                        "value": label_download,
+                                        "short": True
+                                    }
+                    fields.append(dLink)
                     
                     imdb_title      = str(imdb_item['title'])
                     imdb_year       = str(imdb_item['year'])
