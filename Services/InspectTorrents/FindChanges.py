@@ -20,6 +20,7 @@ from optparse import OptionParser, OptionGroup
 from collections import Counter
 from transitions import Machine
 from slackclient import SlackClient
+from limetorrents_crawler import LimeTorrentsCrawler
 
 from Utils import Utilities
 from Utils import Similarity
@@ -379,10 +380,20 @@ class FindChanges():
                 item_selected.update({'imdb_info':imdb_selected})
                 item_selected.update({'torrent_info':torrent_info})
             except Exception as inst:
-              Utilities.ParseException(inst, logger=logger)
+              Utilities.ParseException(inst, logger=self.logger)
             finally:
                 return item_selected
-            
+        
+        def look_for_magnet(link):
+            try:
+                self.logger.debug("+   Getting link magnet")
+                args = {}
+                crawler = LimeTorrentsCrawler(**args)
+                magnet, download_link = crawler.get_magnet_download(link)
+                return magnet, download_link
+            except Exception as inst:
+              Utilities.ParseException(inst, logger=self.logger)
+
         try:
             ## Getting Slack and IMDB clients
             slack_token         = os.environ["SLACK_API_TOKEN"]
