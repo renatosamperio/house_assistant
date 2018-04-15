@@ -53,7 +53,7 @@ class FindChanges():
             self.forecast_item    = None
             self.db_handler       = None
             self.slack_channel    = None
-            self.last_days        = 5
+            self.last_days        = 3
 
             # Generating instance of strategy  
             for key, value in kwargs.iteritems():
@@ -531,7 +531,7 @@ class FindChanges():
                 
                 slack_client.api_call(
                   "chat.postMessage",
-                  channel="test",
+                  channel=self.slack_channel,
                   text="",
                   as_user=True,
                   attachments=attachments
